@@ -14,6 +14,7 @@ jobs:
       - name: Check shell scripts
         run: |
           bash -n scripts/test-cli.sh
+          sh -n scripts/install-release.sh
 
       - name: Build app
         run: |
@@ -54,6 +55,7 @@ jobs:
           mkdir -p build/package
           codesign --verify --deep --strict --verbose=2 build/Release/terminal-notifier.app
           ditto -c -k --keepParent build/Release/terminal-notifier.app "build/package/terminal-notifier-${version}.zip"
+          cp "build/package/terminal-notifier-${version}.zip" build/package/terminal-notifier.zip
 
       - uses: actions/upload-artifact@v4
         with:

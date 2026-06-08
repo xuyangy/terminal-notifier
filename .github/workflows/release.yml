@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production app
+        run: |
+          xcodebuild \
+            -project "Terminal Notifier.xcodeproj" \
+            -scheme "Terminal Notifier" \
+            -configuration Release \
+            SYMROOT="$PWD/build" \
+            -derivedDataPath "$PWD/build/DerivedData" \
+            MACOSX_DEPLOYMENT_TARGET=10.14 \
+            PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier \
+            build
+
+      - name: Package app
+        run: |
+          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/Release/terminal-notifier.app/Contents/Info.plist)
+          mkdir -p build/package
+          codesign --verify --deep --strict --verbose=2 build/Release/terminal-notifier.app
+          ditto -c -k --keepParent build/Release/terminal-notifier.app "build/package/terminal-notifier-${version}.zip"
+          cp "build/package/terminal-notifier-${version}.zip" build/package/terminal-notifier.zip
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          macOS 10.14+ build of terminal-notifier using UserNotifications.
+
+          This artifact is built and ad-hoc signed by GitHub Actions. Developer ID
+          signing and notarization are not configured yet, so macOS may show
+          Gatekeeper warnings for downloaded builds.
+          EOF
+
+          gh release create "$GITHUB_REF_NAME" build/package/*.zip \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md

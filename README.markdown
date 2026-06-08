@@ -1,6 +1,6 @@
 # terminal-notifier
 
-[![GitHub release](https://img.shields.io/github/release/julienXX/terminal-notifier.svg)](https://github.com/julienXX/terminal-notifier/releases)
+[![GitHub release](https://img.shields.io/github/release/xuyangy/terminal-notifier.svg)](https://github.com/xuyangy/terminal-notifier/releases)
 
 terminal-notifier is a command-line tool to send macOS User Notifications.
 This branch targets macOS 10.14 and higher and delivers notifications through
@@ -39,7 +39,34 @@ you need them, use [alerter](https://github.com/vjeantet/alerter). The original
 
 ## Build and Install
 
-Build and install locally with:
+Install from a GitHub Release without cloning the repository:
+
+```sh
+$ curl -fsSL https://raw.githubusercontent.com/xuyangy/terminal-notifier/master/scripts/install-release.sh | sh
+```
+
+The installer downloads the latest release zip, copies the app to
+`~/Applications/terminal-notifier.app`, and creates a wrapper at
+`~/.local/bin/terminal-notifier`.
+
+To install manually:
+
+```sh
+$ curl -L -o terminal-notifier.zip https://github.com/xuyangy/terminal-notifier/releases/latest/download/terminal-notifier.zip
+$ unzip terminal-notifier.zip
+$ mkdir -p ~/Applications ~/.local/bin
+$ cp -R terminal-notifier.app ~/Applications/
+$ printf '#!/bin/sh\nexec "$HOME/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier" "$@"\n' > ~/.local/bin/terminal-notifier
+$ chmod +x ~/.local/bin/terminal-notifier
+```
+
+Make sure `~/.local/bin` is on your `PATH`, then run:
+
+```sh
+$ terminal-notifier -message "installed OK"
+```
+
+To build and install from a local checkout:
 
 ```sh
 $ just build
@@ -51,7 +78,7 @@ $ just install
 an executable wrapper at `~/.local/bin/terminal-notifier`.
 
 Prebuilt binaries may be available from the
-[releases section](https://github.com/julienXX/terminal-notifier/releases).
+[releases section](https://github.com/xuyangy/terminal-notifier/releases).
 
 ## Development
 

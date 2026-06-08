@@ -32,6 +32,8 @@ you need them, use [alerter](https://github.com/vjeantet/alerter). The original
   the posting application by bundle metadata.
 * The first notification from the main app, or from a new `-sender` spoof
   bundle, may trigger a macOS notification permission prompt.
+* Release zips are currently ad-hoc signed by CI, not Developer ID signed or
+  notarized. macOS may show Gatekeeper warnings for downloaded builds.
 * `-ignoreDnD` maps to a time-sensitive notification on macOS 12+. Focus/DnD
   behavior is still controlled by macOS settings and entitlements.
 * If you're looking for sticky notifications or action buttons, use

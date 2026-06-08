@@ -38,3 +38,24 @@ jobs:
             MACOSX_DEPLOYMENT_TARGET=10.14 \
             PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier.dev \
             analyze
+
+      - name: Package production artifact
+        run: |
+          xcodebuild \
+            -project "Terminal Notifier.xcodeproj" \
+            -scheme "Terminal Notifier" \
+            -configuration Release \
+            SYMROOT="$PWD/build" \
+            -derivedDataPath "$PWD/build/DerivedData" \
+            MACOSX_DEPLOYMENT_TARGET=10.14 \
+            PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier \
+            build
+          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/Release/terminal-notifier.app/Contents/Info.plist)
+          mkdir -p build/package
+          codesign --verify --deep --strict --verbose=2 build/Release/terminal-notifier.app
+          ditto -c -k --keepParent build/Release/terminal-notifier.app "build/package/terminal-notifier-${version}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terminal-notifier-package
+          path: build/package/*.zip

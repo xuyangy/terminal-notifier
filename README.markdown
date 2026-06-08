@@ -68,9 +68,16 @@ colliding with installed Homebrew or release builds during local testing. Raw
 Xcode builds and `just release-build` use the production bundle id
 `fr.julienxx.oss.terminal-notifier` automatically.
 
-For public distribution, sign the production app with a Developer ID
-certificate, enable the hardened runtime, notarize with `xcrun notarytool`, and
-staple the notarization ticket before publishing binaries.
+Create a production zip artifact with:
+
+```sh
+$ just package
+```
+
+This writes `build/package/terminal-notifier-<version>.zip`. For public
+distribution, sign the production app with a Developer ID certificate, enable
+the hardened runtime, notarize with `xcrun notarytool`, and staple the
+notarization ticket before publishing binaries.
 
 ## Notification Permissions
 

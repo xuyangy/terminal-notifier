@@ -36,6 +36,10 @@ release-build:
         MACOSX_DEPLOYMENT_TARGET={{macos_deployment_target}} \
         PRODUCT_BUNDLE_IDENTIFIER={{release_bundle_id}}
 
+# Build and zip a production-identity app artifact
+package: release-build
+    version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "{{app}}/Contents/Info.plist"); mkdir -p "{{build_dir}}/package"; codesign --verify --deep --strict --verbose=2 "{{app}}"; ditto -c -k --keepParent "{{app}}" "{{build_dir}}/package/terminal-notifier-${version}.zip"; echo "Created {{build_dir}}/package/terminal-notifier-${version}.zip"
+
 # Remove build artifacts
 clean:
     rm -rf "{{build_dir}}"

@@ -1,0 +1,40 @@
+name: Build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check shell scripts
+        run: |
+          bash -n scripts/test-cli.sh
+
+      - name: Build app
+        run: |
+          xcodebuild \
+            -project "Terminal Notifier.xcodeproj" \
+            -scheme "Terminal Notifier" \
+            -configuration Release \
+            SYMROOT="$PWD/build" \
+            -derivedDataPath "$PWD/build/DerivedData" \
+            MACOSX_DEPLOYMENT_TARGET=10.14 \
+            PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier.dev \
+            build
+
+      - name: Analyze app
+        run: |
+          xcodebuild \
+            -project "Terminal Notifier.xcodeproj" \
+            -scheme "Terminal Notifier" \
+            -configuration Release \
+            SYMROOT="$PWD/build" \
+            -derivedDataPath "$PWD/build/DerivedData" \
+            MACOSX_DEPLOYMENT_TARGET=10.14 \
+            PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier.dev \
+            analyze

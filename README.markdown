@@ -2,94 +2,129 @@
 
 [![GitHub release](https://img.shields.io/github/release/julienXX/terminal-notifier.svg)](https://github.com/julienXX/terminal-notifier/releases)
 
-terminal-notifier is a command-line tool to send macOS User Notifications,
-which are available on macOS 10.10 and higher.
+terminal-notifier is a command-line tool to send macOS User Notifications.
+This branch targets macOS 10.14 and higher and delivers notifications through
+Apple's UserNotifications framework.
 
+## Modernization notes
 
-## News
+This branch updates the original project for current macOS development:
+
+* Notification delivery uses `UserNotifications` instead of deprecated
+  `NSUserNotification`.
+* The old private notification image keys and default bundle-ID swizzle have
+  been removed.
+* `-sender` and `-appIcon` are implemented with cached spoof app bundles so
+  Notification Center sees the requested sender identity.
+* The old bundled Ruby gem wrapper has been removed.
+
+## Historical note
 
 [alerter](https://github.com/vjeantet/alerter) features were merged in terminal-notifier 1.7. This led to some issues and even more issues in the 1.8 release. We decided with [Valère Jeantet](https://github.com/vjeantet) to rollback this merge.
 
-From now on terminal-notifier won't have the sticky notification feature nor the actions buttons. If you need them please use [alerter](https://github.com/vjeantet/alerter). I also want to follow [semver](http://semver.org) hence this latest version starts at 2.0.0.
-
-Sticking to two smaller specialized tools will hopefully make them easier to maintain and less error prone.
-
+terminal-notifier does not include sticky notifications or action buttons. If
+you need them, use [alerter](https://github.com/vjeantet/alerter). The original
+2.0.0 release restarted versioning around that smaller feature set.
 
 ## Caveats
 
-* It is currently packaged as an application bundle, because `NSUserNotification`
-  does not work from a ‘Foundation tool’. [radar://11956694](radar://11956694)
+* It is packaged as an application bundle because Notification Center identifies
+  the posting application by bundle metadata.
+* The first notification from the main app, or from a new `-sender` spoof
+  bundle, may trigger a macOS notification permission prompt.
+* `-ignoreDnD` maps to a time-sensitive notification on macOS 12+. Focus/DnD
+  behavior is still controlled by macOS settings and entitlements.
+* If you're looking for sticky notifications or action buttons, use
+  [alerter](https://github.com/vjeantet/alerter).
 
-* If you intend to package terminal-notifier with your app to distribute it on the Mac App Store, please use 1.5.2; version 1.6.0+ uses a private method override, which is not allowed in the App Store Guidelines.
+## Build and Install
 
-* If you're using macOS < 10.10 you should use terminal-notifier 1.6.3.
+Build and install locally with:
 
-* If you're looking for sticky notifications or more actions on a notification please use [alerter](https://github.com/vjeantet/alerter)
+```sh
+$ just build
+$ just install
+```
 
-## Download
+`just build` creates a development app at `build/Release/terminal-notifier.app`.
+`just install` copies it to `~/Applications/terminal-notifier.app` and creates
+an executable wrapper at `~/.local/bin/terminal-notifier`.
 
-Prebuilt binaries are available from the
+Prebuilt binaries may be available from the
 [releases section](https://github.com/julienXX/terminal-notifier/releases).
 
-Or if you want to use this from
-[Ruby](https://github.com/julienXX/terminal-notifier/tree/master/Ruby), you can
-install it through RubyGems:
+## Development
 
-```
-$ [sudo] gem install terminal-notifier
+Build and smoke-test locally with:
+
+```sh
+$ just build
+$ just smoke
+$ just test-cli
 ```
 
-You can also install it via [Homebrew](https://github.com/mxcl/homebrew):
-```
-$ brew install terminal-notifier
-```
+`just build` uses the bundle id `fr.julienxx.oss.terminal-notifier.dev` to avoid
+colliding with installed Homebrew or release builds during local testing. Raw
+Xcode builds and `just release-build` use the production bundle id
+`fr.julienxx.oss.terminal-notifier` automatically.
+
+For public distribution, sign the production app with a Developer ID
+certificate, enable the hardened runtime, notarize with `xcrun notarytool`, and
+staple the notarization ticket before publishing binaries.
+
+## Notification Permissions
+
+macOS asks for notification permission the first time a bundle identifier posts
+a notification. If you deny the prompt, delivery fails until you re-enable the
+app in System Settings -> Notifications. Development builds appear as
+`terminal-notifier` or `terminal-notifier (dev)`, depending on how they were
+built and installed.
 
 ## Usage
 
-```
-$ ./terminal-notifier.app/Contents/MacOS/terminal-notifier -[message|group|list] [VALUE|ID|ID] [options]
+```sh
+$ ./build/Release/terminal-notifier.app/Contents/MacOS/terminal-notifier -[message|group|list] [VALUE|ID|ID] [options]
 ```
 
 In order to use terminal-notifier, you have to call the binary _inside_ the
 application bundle.
 
-The Ruby gem, which wraps this tool, _does_ have a bin wrapper. If installed
-you can simply do:
+If installed with `just install`, run it through the wrapper:
 
-```
+```sh
 $ terminal-notifier -[message|group|list] [VALUE|ID|ID] [options]
 ```
 
-This will obviously be a bit slower than using the tool without the wrapper.
-
-If you'd like notifications to stay on the screen until dismissed, go to System Preferences -> Notifications -> terminal-notifier and change the style from Banners to Alerts. You cannot do this on a per-notification basis.
+If you'd like notifications to stay on the screen until dismissed, go to System
+Settings -> Notifications -> terminal-notifier and change the style from Banners
+to Alerts. You cannot do this on a per-notification basis.
 
 
 ### Example Uses
 
 Display piped data with a sound:
-```
+```sh
 $ echo 'Piped Message Data!' | terminal-notifier -sound default
 ```
 
 ![Example 1](assets/Example_1.png)
 
 Use a custom icon:
-```
-$ terminal-notifier -title ProjectX -subtitle "new tag detected" -message "Finished" -appIcon http://vjeantet.fr/images/logo.png
+```sh
+$ terminal-notifier -title ProjectX -subtitle "new tag detected" -message "Finished" -appIcon /path/to/icon.png
 ```
 
 ![Example 3](assets/Example_3.png)
 
 Open an URL when the notification is clicked:
-```
-$ terminal-notifier -title '💰' -message 'Check your Apple stock!' -open 'http://finance.yahoo.com/q?s=AAPL'
+```sh
+$ terminal-notifier -title 'Stock' -message 'Check your Apple stock!' -open 'https://finance.yahoo.com/quote/AAPL'
 ```
 
 ![Example 4](assets/Example_4.png)
 
 Open an app when the notification is clicked:
-```
+```sh
 $ terminal-notifier -group 'address-book-sync' -title 'Address Book Sync' -subtitle 'Finished' -message 'Imported 42 contacts.' -activate 'com.apple.AddressBook'
 ```
 
@@ -184,14 +219,11 @@ Examples application IDs are:
 
 `-sender ID`
 
-Fakes the sender application of the notification. This uses the specified
-application’s icon, and will launch it when the notification is clicked.
-
-Using this option fakes the sender application, so that the notification system
-will launch that application when the notification is clicked. Because of this
-it is important to note that you cannot combine this with options like
-`-execute` and `-activate` which depend on the sender of the notification to be
-‘terminal-notifier’ to perform its work.
+Make the notification appear to come from the app with this bundle identifier.
+terminal-notifier does this by creating a cached clone of its own `.app`, then
+changing the clone's bundle identifier, display name, and icon before re-running
+from that clone. The first use of a sender may require notification permission
+for the generated spoof bundle.
 
 For information on the `ID`, see the `-activate` option.
 
@@ -199,17 +231,16 @@ For information on the `ID`, see the `-activate` option.
 
 `-appIcon PATH`
 
-Specify an image `PATH` to display instead of the application icon.
-
-**WARNING: This option is subject to change, since it relies on a private method.**
+Specify a local image `PATH` or `file://` URL to display instead of the
+application icon. `.icns` files are used directly; other image formats supported
+by `NSImage` are converted to `.icns` for the cached spoof bundle.
 
 -------------------------------------------------------------------------------
 
 `-contentImage PATH`
 
-Specify an image `PATH` to attach inside of the notification.
-
-**WARNING: This option is subject to change since it relies on a private method.**
+Specify a local image `PATH` or `file://` URL to attach inside the notification.
+Use common attachment formats such as png, jpg, jpeg, or gif.
 
 -------------------------------------------------------------------------------
 
@@ -223,14 +254,14 @@ or any custom URL scheme.
 `-execute COMMAND`
 
 Run the shell command `COMMAND` when the user clicks the notification.
+The command is passed to `/bin/sh -c`.
 
 -------------------------------------------------------------------------------
 
 `-ignoreDnD`
 
-Ignore Do Not Disturb settings and unconditionally show the notification.
-
-**WARNING: This option is subject to change since it relies on a private method.**
+Request a time-sensitive notification on macOS 12 and newer. macOS still
+controls whether this can bypass Focus or Do Not Disturb.
 
 ## License
 

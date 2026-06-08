@@ -8,7 +8,7 @@ This repository contains the macOS `terminal-notifier` app.
 - `Terminal Notifier.xcodeproj/` is the Xcode project and shared scheme metadata.
 - `assets/` stores README screenshots and documentation images.
 - `scripts/` contains manual CLI smoke tests.
-- `README.markdown`, `CONTRIBUTING.md`, and `CODE_OF_CONDUCT.md` define user-facing behavior and contribution expectations.
+- `README.md`, `CONTRIBUTING.md`, and `CODE_OF_CONDUCT.md` define user-facing behavior and contribution expectations.
 
 ## Build, Test, and Development Commands
 

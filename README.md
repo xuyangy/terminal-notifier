@@ -1,57 +1,39 @@
 # terminal-notifier
 
 [![GitHub release](https://img.shields.io/github/release/xuyangy/terminal-notifier.svg)](https://github.com/xuyangy/terminal-notifier/releases)
+[![Build](https://github.com/xuyangy/terminal-notifier/actions/workflows/build.yml/badge.svg)](https://github.com/xuyangy/terminal-notifier/actions/workflows/build.yml)
 
 terminal-notifier is a command-line tool to send macOS User Notifications.
-This branch targets macOS 10.14 and higher and delivers notifications through
-Apple's UserNotifications framework.
 
-## Modernization notes
+```sh
+$ terminal-notifier -title "Build" -message "Tests passed ✅" -sound default
+```
 
-This branch updates the original project for current macOS development:
+This is a modernized fork of
+[julienXX/terminal-notifier](https://github.com/julienXX/terminal-notifier)
+that targets macOS 10.14 and higher and delivers notifications through Apple's
+`UserNotifications` framework:
 
-* Notification delivery uses `UserNotifications` instead of deprecated
-  `NSUserNotification`.
-* The old private notification image keys and default bundle-ID swizzle have
-  been removed.
-* `-sender` and `-appIcon` are implemented with cached spoof app bundles so
-  Notification Center sees the requested sender identity.
-* The old bundled Ruby gem wrapper has been removed.
+* Notification delivery uses `UserNotifications` instead of the deprecated
+  `NSUserNotification` API removed from modern macOS.
+* `-sender` and `-appIcon` work again, implemented with cached spoof app
+  bundles so Notification Center sees the requested sender identity.
+* The old private notification image keys, the default bundle-ID swizzle, and
+  the bundled Ruby gem wrapper have been removed.
 
-## Historical note
+## Install
 
-[alerter](https://github.com/vjeantet/alerter) features were merged in terminal-notifier 1.7. This led to some issues and even more issues in the 1.8 release. We decided with [Valère Jeantet](https://github.com/vjeantet) to rollback this merge.
-
-terminal-notifier does not include sticky notifications or action buttons. If
-you need them, use [alerter](https://github.com/vjeantet/alerter). The original
-2.0.0 release restarted versioning around that smaller feature set.
-
-## Caveats
-
-* It is packaged as an application bundle because Notification Center identifies
-  the posting application by bundle metadata.
-* The first notification from the main app, or from a new `-sender` spoof
-  bundle, may trigger a macOS notification permission prompt.
-* Release zips are currently ad-hoc signed by CI, not Developer ID signed or
-  notarized. macOS may show Gatekeeper warnings for downloaded builds.
-* `-ignoreDnD` maps to a time-sensitive notification on macOS 12+. Focus/DnD
-  behavior is still controlled by macOS settings and entitlements.
-* If you're looking for sticky notifications or action buttons, use
-  [alerter](https://github.com/vjeantet/alerter).
-
-## Build and Install
-
-Install from a GitHub Release without cloning the repository:
+### From a GitHub Release (recommended)
 
 ```sh
 $ curl -fsSL https://raw.githubusercontent.com/xuyangy/terminal-notifier/master/scripts/install-release.sh | sh
 ```
 
 The installer downloads the latest release zip, copies the app to
-`~/Applications/terminal-notifier.app`, and creates a wrapper at
-`~/.local/bin/terminal-notifier`.
+`~/Applications/terminal-notifier.app`, registers it with Launch Services, and
+creates a wrapper at `~/.local/bin/terminal-notifier`.
 
-To install manually:
+Or manually:
 
 ```sh
 $ curl -L -o terminal-notifier.zip https://github.com/xuyangy/terminal-notifier/releases/latest/download/terminal-notifier.zip
@@ -68,75 +50,40 @@ Make sure `~/.local/bin` is on your `PATH`, then run:
 $ terminal-notifier -message "installed OK"
 ```
 
-To build and install from a local checkout:
+### From source
+
+Requires full Xcode (not only Command Line Tools) and
+[just](https://github.com/casey/just):
 
 ```sh
-$ just build
-$ just install
+$ just build      # development app at build/Release/terminal-notifier.app
+$ just install    # copy to ~/Applications + wrapper in ~/.local/bin
 ```
-
-`just build` creates a development app at `build/Release/terminal-notifier.app`.
-`just install` copies it to `~/Applications/terminal-notifier.app` and creates
-an executable wrapper at `~/.local/bin/terminal-notifier`.
-
-Prebuilt binaries may be available from the
-[releases section](https://github.com/xuyangy/terminal-notifier/releases).
-
-## Development
-
-Build and smoke-test locally with:
-
-```sh
-$ just build
-$ just smoke
-$ just test-cli
-```
-
-`just build` uses the bundle id `fr.julienxx.oss.terminal-notifier.dev` to avoid
-colliding with installed Homebrew or release builds during local testing. Raw
-Xcode builds and `just release-build` use the production bundle id
-`fr.julienxx.oss.terminal-notifier` automatically.
-
-Create a production zip artifact with:
-
-```sh
-$ just package
-```
-
-This writes `build/package/terminal-notifier-<version>.zip`. For public
-distribution, sign the production app with a Developer ID certificate, enable
-the hardened runtime, notarize with `xcrun notarytool`, and staple the
-notarization ticket before publishing binaries.
-
-## Notification Permissions
-
-macOS asks for notification permission the first time a bundle identifier posts
-a notification. If you deny the prompt, delivery fails until you re-enable the
-app in System Settings -> Notifications. Development builds appear as
-`terminal-notifier` or `terminal-notifier (dev)`, depending on how they were
-built and installed.
 
 ## Usage
-
-```sh
-$ ./build/Release/terminal-notifier.app/Contents/MacOS/terminal-notifier -[message|remove|list] [VALUE|ID|ID] [options]
-```
-
-In order to use terminal-notifier, you have to call the binary _inside_ the
-application bundle.
-
-If installed with `just install`, run it through the wrapper:
 
 ```sh
 $ terminal-notifier -[message|remove|list] [VALUE|ID|ID] [options]
 ```
 
+At a minimum, specify one of `-message`, `-remove`, or `-list` (or pipe the
+message body in on stdin). terminal-notifier must run from inside its
+application bundle — Notification Center identifies the posting application by
+bundle metadata — so invoke it through the installed wrapper or the full
+`terminal-notifier.app/Contents/MacOS/terminal-notifier` path, never a copied
+or symlinked bare binary.
+
+Exit status: `0` on success, `1` on bad arguments, denied notification
+permission, or a failed click action, `2` if delivery does not complete within
+ten seconds.
+
 If you'd like notifications to stay on the screen until dismissed, go to System
 Settings -> Notifications -> terminal-notifier and change the style from Banners
-to Alerts. You cannot do this on a per-notification basis.
+to Alerts. You cannot do this on a per-notification basis; for sticky
+notifications and action buttons use
+[alerter](https://github.com/vjeantet/alerter).
 
-
-### Example Uses
+### Examples
 
 Display piped data with a sound:
 ```sh
@@ -166,15 +113,15 @@ $ terminal-notifier -group 'address-book-sync' -title 'Address Book Sync' -subti
 
 ![Example 5](assets/Example_5.png)
 
-
 ### Options
 
-At a minimum, you must specify either the `-message` , the `-remove`, or the
-`-list` option.
+`-help`, `-version`
+
+Print the usage banner or the version, then exit.
 
 -------------------------------------------------------------------------------
 
-`-message VALUE`  **[required]**
+`-message VALUE`
 
 The message body of the notification.
 
@@ -198,7 +145,7 @@ The subtitle of the notification.
 `-sound NAME`
 
 Play the `NAME` sound when the notification appears.
-Sound names are listed in `/System/Library/Sounds`.
+Sound names are listed in `/System/Library/Sounds` and `~/Library/Sounds`.
 
 Use the special `NAME` “default” for the default notification sound.
 
@@ -220,7 +167,7 @@ Example group IDs:
 
 -------------------------------------------------------------------------------
 
-`-remove ID`  **[required]**
+`-remove ID`
 
 Remove a previous notification from the `ID` ‘group’, if one exists.
 
@@ -228,7 +175,7 @@ Use the special `ID` “ALL” to remove all messages.
 
 -------------------------------------------------------------------------------
 
-`-list ID` **[required]**
+`-list ID`
 
 Lists details about the specified ‘group’ `ID`.
 
@@ -281,7 +228,8 @@ by `NSImage` are converted to `.icns` for the cached spoof bundle.
 `-contentImage PATH`
 
 Specify a local image `PATH` or `file://` URL to attach inside the notification.
-Use common attachment formats such as png, jpg, jpeg, or gif.
+Use common attachment formats such as png, jpg, jpeg, or gif. The original file
+is left in place (a temporary copy is attached).
 
 -------------------------------------------------------------------------------
 
@@ -295,7 +243,8 @@ or any custom URL scheme.
 `-execute COMMAND`
 
 Run the shell command `COMMAND` when the user clicks the notification.
-The command is passed to `/bin/sh -c`.
+The command is passed to `/bin/sh -c`, and its output is written to the system
+log (viewable in Console.app).
 
 -------------------------------------------------------------------------------
 
@@ -303,6 +252,75 @@ The command is passed to `/bin/sh -c`.
 
 Request a time-sensitive notification on macOS 12 and newer. macOS still
 controls whether this can bypass Focus or Do Not Disturb.
+
+## Notification Permissions
+
+macOS asks for notification permission the first time a bundle identifier posts
+a notification. If you deny the prompt — or later switch the app off in System
+Settings -> Notifications — delivery fails with exit status 1 and a message
+naming the exact entry to re-enable, for example:
+
+```
+[!] Notifications for 'terminal-notifier' are turned off. Enable them in
+System Settings -> Notifications -> terminal-notifier and try again.
+```
+
+Development builds appear as `terminal-notifier (dev)`, release builds as
+`terminal-notifier`, and each `-sender`/`-appIcon` spoof bundle gets its own
+entry under the spoofed name.
+
+## Development
+
+Build and smoke-test locally with:
+
+```sh
+$ just build      # build the dev app
+$ just smoke      # send a quick test notification
+$ just test-cli   # interactive smoke-test of every CLI feature
+```
+
+`just build` uses the bundle id `fr.julienxx.oss.terminal-notifier.dev` and the
+display name `terminal-notifier (dev)` to avoid colliding with installed
+Homebrew or release builds during local testing. Raw Xcode builds and
+`just release-build` use the production bundle id
+`fr.julienxx.oss.terminal-notifier` automatically.
+
+Other useful recipes: `just run -message hi` (build and run with arguments),
+`just which` (print the built binary path), `just clean`.
+
+### Releasing
+
+```sh
+$ just package    # build + zip build/package/terminal-notifier-<version>.zip
+```
+
+Releases are published by CI: bump `CFBundleShortVersionString` and
+`CFBundleVersion` in `Terminal Notifier/Terminal Notifier-Info.plist`, commit,
+then push a `v<version>` tag that matches the plist version exactly — the
+Release workflow verifies the match, builds, and attaches the zips to a GitHub
+Release. For public distribution beyond that, sign the production app with a
+Developer ID certificate, enable the hardened runtime, notarize with
+`xcrun notarytool`, and staple the notarization ticket before publishing
+binaries.
+
+## Caveats
+
+* It is packaged as an application bundle because Notification Center identifies
+  the posting application by bundle metadata.
+* The first notification from the main app, or from a new `-sender` spoof
+  bundle, may trigger a macOS notification permission prompt.
+* Release zips are currently ad-hoc signed by CI, not Developer ID signed or
+  notarized. macOS may show Gatekeeper warnings for downloaded builds.
+* `-ignoreDnD` maps to a time-sensitive notification on macOS 12+. Focus/DnD
+  behavior is still controlled by macOS settings and entitlements.
+
+## Historical note
+
+[alerter](https://github.com/vjeantet/alerter) features were merged in terminal-notifier 1.7. This led to some issues and even more issues in the 1.8 release. We decided with [Valère Jeantet](https://github.com/vjeantet) to rollback this merge.
+
+terminal-notifier does not include sticky notifications or action buttons. If
+you need them, use [alerter](https://github.com/vjeantet/alerter). The original
+2.0.0 release restarted versioning around that smaller feature set.
 
 ## License
 

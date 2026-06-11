@@ -42,7 +42,7 @@ jobs:
             build
           scripts/package.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: terminal-notifier-package
           path: build/package/*.zip

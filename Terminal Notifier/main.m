@@ -2,6 +2,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <sys/stat.h>
 #import <unistd.h>
+#import "AppDelegate.h"
 
 // -sender / -appIcon spoofing
 // ---------------------------
@@ -32,14 +33,14 @@ static BOOL HasArg(int argc, char *argv[], const char *flag) {
   return NO;
 }
 
-static void PrintVersion(void) {
+void PrintVersion(void) {
   NSBundle *bundle = [NSBundle mainBundle];
   const char *appName = [[bundle objectForInfoDictionaryKey:@"CFBundleExecutable"] UTF8String];
   const char *appVersion = [[bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] UTF8String];
   printf("%s %s.\n", appName, appVersion);
 }
 
-static void PrintHelpBanner(void) {
+void PrintHelpBanner(void) {
   NSBundle *bundle = [NSBundle mainBundle];
   const char *appName = [[bundle objectForInfoDictionaryKey:@"CFBundleExecutable"] UTF8String];
   const char *appVersion = [[bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] UTF8String];
@@ -52,22 +53,38 @@ static void PrintHelpBanner(void) {
          "       -help              Display this help banner.\n" \
          "       -version           Display terminal-notifier version.\n" \
          "       -message VALUE     The notification message.\n" \
-         "       -remove ID         Removes a notification with the specified group ID.\n" \
-         "       -list ID           Lists delivered notifications for the specified group ID.\n" \
+         "       -remove ID         Removes a notification with the specified ‘group’ ID.\n" \
+         "       -list ID           If the specified ‘group’ ID exists show when it was delivered,\n" \
+         "                          or use ‘ALL’ as ID to see all notifications.\n" \
+         "                          The output is a tab-separated list.\n"
          "\n" \
          "   Optional:\n" \
          "\n" \
-         "       -title VALUE       The notification title. Defaults to Terminal.\n" \
+         "       -title VALUE       The notification title. Defaults to ‘Terminal’.\n" \
          "       -subtitle VALUE    The notification subtitle.\n" \
-         "       -sound NAME        The notification sound name. Use default for the default sound.\n" \
-         "       -group ID          Replace previous notifications with the same group ID.\n" \
-         "       -activate ID       Activate the app with this bundle ID when clicked.\n" \
-         "       -sender ID         Make the notification appear to come from this bundle ID.\n" \
-         "       -appIcon PATH      Use a local image as the notification app icon.\n" \
-         "       -contentImage URL  Attach a local image to the notification.\n" \
-         "       -open URL          Open a URL when clicked.\n" \
-         "       -execute COMMAND   Run a shell command when clicked.\n" \
-         "       -ignoreDnD         Request a time-sensitive notification when supported.\n" \
+         "       -sound NAME        The name of a sound to play when the notification appears. The names are listed\n" \
+         "                          in Sound Preferences. Use 'default' for the default notification sound.\n" \
+         "       -group ID          A string which identifies the group the notifications belong to.\n" \
+         "                          Old notifications with the same ID will be removed.\n" \
+         "       -activate ID       The bundle identifier of the application to activate when the user clicks the notification.\n" \
+         "       -sender ID         Make the notification appear to come from the app with this bundle ID.\n" \
+         "                          terminal-notifier re-launches itself from a cached clone of its .app\n" \
+         "                          bundle whose icon, display name, and bundle ID match the sender.\n" \
+         "                          First use of a given sender shows the macOS notification-permission prompt.\n" \
+         "       -appIcon PATH      Override the notification icon. Accepts .icns directly; other image\n" \
+         "                          formats (png, jpg, tiff, …) are rendered to .icns automatically.\n" \
+         "                          Combines with -sender (keeps the sender's name, swaps the icon).\n" \
+         "       -contentImage URL  The URL of an image to display attached to the notification.\n" \
+         "                          Supported types: png, jpg, jpeg, gif. (.icns is NOT supported.)\n" \
+         "       -open URL          The URL of a resource to open when the user clicks the notification.\n" \
+         "       -execute COMMAND   A shell command to perform when the user clicks the notification.\n" \
+         "       -ignoreDnD         Mark notification as time-sensitive (requires entitlement to bypass Focus/DnD).\n" \
+         "\n" \
+         "When the user activates a notification, the results are logged to the system logs.\n" \
+         "Use Console.app to view these logs.\n" \
+         "\n" \
+         "Note that in some circumstances the first character of a message has to be escaped in order to be recognized.\n" \
+         "An example of this is when using an open bracket, which has to be escaped like so: ‘\\[’.\n" \
          "\n" \
          "For more information see https://github.com/julienXX/terminal-notifier.\n",
          appName, appVersion, appName);

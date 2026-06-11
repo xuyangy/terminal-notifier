@@ -38,7 +38,7 @@ release-build:
 
 # Build and zip a production-identity app artifact
 package: release-build
-    version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "{{app}}/Contents/Info.plist"); mkdir -p "{{build_dir}}/package"; codesign --verify --deep --strict --verbose=2 "{{app}}"; ditto -c -k --keepParent "{{app}}" "{{build_dir}}/package/terminal-notifier-${version}.zip"; cp "{{build_dir}}/package/terminal-notifier-${version}.zip" "{{build_dir}}/package/terminal-notifier.zip"; echo "Created {{build_dir}}/package/terminal-notifier-${version}.zip and {{build_dir}}/package/terminal-notifier.zip"
+    scripts/package.sh "{{app}}" "{{build_dir}}/package"
 
 # Remove build artifacts
 clean:

@@ -1,5 +1,4 @@
 #import "AppDelegate.h"
-#import <ScriptingBridge/ScriptingBridge.h>
 #import <stdatomic.h>
 
 NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier";
@@ -20,63 +19,6 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
   BOOL _responseHandled;
 }
 
-- (void)printHelpBanner;
-{
-  const char *appName = [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleExecutable"] UTF8String];
-  const char *appVersion = [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] UTF8String];
-  printf("%s (%s) is a command-line tool to send macOS User Notifications.\n" \
-         "\n" \
-         "Usage: %s -[message|list|remove] [VALUE|ID|ID] [options]\n" \
-         "\n" \
-         "   Either of these is required (unless message data is piped to the tool):\n" \
-         "\n" \
-         "       -help              Display this help banner.\n" \
-         "       -version           Display terminal-notifier version.\n" \
-         "       -message VALUE     The notification message.\n" \
-         "       -remove ID         Removes a notification with the specified ‘group’ ID.\n" \
-         "       -list ID           If the specified ‘group’ ID exists show when it was delivered,\n" \
-         "                          or use ‘ALL’ as ID to see all notifications.\n" \
-         "                          The output is a tab-separated list.\n"
-         "\n" \
-         "   Optional:\n" \
-         "\n" \
-         "       -title VALUE       The notification title. Defaults to ‘Terminal’.\n" \
-         "       -subtitle VALUE    The notification subtitle.\n" \
-         "       -sound NAME        The name of a sound to play when the notification appears. The names are listed\n" \
-         "                          in Sound Preferences. Use 'default' for the default notification sound.\n" \
-         "       -group ID          A string which identifies the group the notifications belong to.\n" \
-         "                          Old notifications with the same ID will be removed.\n" \
-         "       -activate ID       The bundle identifier of the application to activate when the user clicks the notification.\n" \
-         "       -sender ID         Make the notification appear to come from the app with this bundle ID.\n" \
-         "                          terminal-notifier re-launches itself from a cached clone of its .app\n" \
-         "                          bundle whose icon, display name, and bundle ID match the sender.\n" \
-         "                          First use of a given sender shows the macOS notification-permission prompt.\n" \
-         "       -appIcon PATH      Override the notification icon. Accepts .icns directly; other image\n" \
-         "                          formats (png, jpg, tiff, …) are rendered to .icns automatically.\n" \
-         "                          Combines with -sender (keeps the sender's name, swaps the icon).\n" \
-         "       -contentImage URL  The URL of an image to display attached to the notification.\n" \
-         "                          Supported types: png, jpg, jpeg, gif. (.icns is NOT supported.)\n" \
-         "       -open URL          The URL of a resource to open when the user clicks the notification.\n" \
-         "       -execute COMMAND   A shell command to perform when the user clicks the notification.\n" \
-         "       -ignoreDnD         Mark notification as time-sensitive (requires entitlement to bypass Focus/DnD).\n" \
-         "\n" \
-         "When the user activates a notification, the results are logged to the system logs.\n" \
-         "Use Console.app to view these logs.\n" \
-         "\n" \
-         "Note that in some circumstances the first character of a message has to be escaped in order to be recognized.\n" \
-         "An example of this is when using an open bracket, which has to be escaped like so: ‘\\[’.\n" \
-         "\n" \
-         "For more information see https://github.com/julienXX/terminal-notifier.\n",
-         appName, appVersion, appName);
-}
-
-- (void)printVersion;
-{
-  const char *appName = [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleExecutable"] UTF8String];
-  const char *appVersion = [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] UTF8String];
-  printf("%s %s.\n", appName, appVersion);
-}
-
 - (void)applicationWillFinishLaunching:(NSNotification *)notification;
 {
   // Set the UN delegate before launch completes so click-launched responses
@@ -86,9 +28,8 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification;
 {
+  // -help and -version are handled in main() before NSApplicationMain.
   NSArray<NSString *> *args = [[NSProcessInfo processInfo] arguments];
-  if ([args containsObject:@"-help"]) { [self printHelpBanner]; exit(0); }
-  if ([args containsObject:@"-version"]) { [self printVersion]; exit(0); }
 
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
   NSString *subtitle = defaults[@"subtitle"];
@@ -102,20 +43,30 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
   // stdin is /dev/null — non-tty but EOFs immediately — so the read yields @"".
   // Treat an empty read as "no message" so we fall through to the response-waiting
   // fallback rather than posting an empty notification.
-  if (message == nil && !isatty(STDIN_FILENO)) {
+  // -list never uses the message, so skip the read for it — otherwise a stdin
+  // pipe that never closes (e.g. invocation from a daemon) blocks the listing.
+  if (message == nil && list == nil && !isatty(STDIN_FILENO)) {
     NSData *inputData = [[NSFileHandle fileHandleWithStandardInput] readDataToEndOfFile];
     NSString *piped = [[NSString alloc] initWithData:inputData encoding:NSUTF8StringEncoding];
     if (piped.length > 0) message = piped;
   }
 
   if (message == nil && remove == nil && list == nil) {
-    // The binary may have been re-launched in response to a notification click;
-    // give the UN delegate a moment to fire didReceiveNotificationResponse:
-    // before assuming this is a bare invocation that should print help.
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
+    // Interactive invocation (stdin is a TTY) can't be a notification-click
+    // relaunch, so print help immediately.
+    if (isatty(STDIN_FILENO)) {
+      PrintHelpBanner();
+      exit(1);
+    }
+    // Otherwise the binary may have been re-launched in response to a
+    // notification click; give the UN delegate time to fire
+    // didReceiveNotificationResponse: before assuming this is a bare
+    // invocation that should print help. A short window risks dropping the
+    // click's action on a slow launch, so be generous.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
       if (!self->_responseHandled) {
-        [self printHelpBanner];
+        PrintHelpBanner();
         exit(1);
       }
     });
@@ -135,7 +86,9 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
 
   if (defaults[@"open"]) {
     NSURL *url = [NSURL URLWithString:defaults[@"open"]];
-    if ((url && url.scheme && url.host) || [url isFileURL]) {
+    // Any URL with a scheme is acceptable: web URLs, file URLs, and
+    // host-less schemes like mailto: or custom app schemes.
+    if (url && url.scheme.length > 0) {
       options[@"open"] = defaults[@"open"];
     } else {
       NSLog(@"'%@' is not a valid URI.", defaults[@"open"]);
@@ -221,16 +174,35 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
 
   if (options[@"contentImage"]) {
     NSURL *imageURL = [self resolveImageURL:options[@"contentImage"]];
-    NSError *attachErr = nil;
-    UNNotificationAttachment *attachment =
-      [UNNotificationAttachment attachmentWithIdentifier:@"contentImage"
-                                                     URL:imageURL
-                                                 options:nil
-                                                   error:&attachErr];
-    if (attachment) {
-      content.attachments = @[attachment];
-    } else {
-      NSLog(@"[!] Failed to attach contentImage: %@", attachErr.localizedDescription);
+    // UNNotificationAttachment MOVES the attached file into the system's
+    // notification data store, which would delete the user's original.
+    // Attach a temporary copy instead.
+    if (imageURL.isFileURL) {
+      NSString *ext = imageURL.pathExtension.length > 0 ? imageURL.pathExtension : @"png";
+      NSString *tmpName = [NSString stringWithFormat:@"terminal-notifier-attachment-%@.%@",
+                           [[NSUUID UUID] UUIDString], ext];
+      NSURL *tmpURL = [NSURL fileURLWithPath:
+                       [NSTemporaryDirectory() stringByAppendingPathComponent:tmpName]];
+      NSError *copyErr = nil;
+      if ([[NSFileManager defaultManager] copyItemAtURL:imageURL toURL:tmpURL error:&copyErr]) {
+        imageURL = tmpURL;
+      } else {
+        NSLog(@"[!] Failed to read contentImage: %@", copyErr.localizedDescription);
+        imageURL = nil;
+      }
+    }
+    if (imageURL) {
+      NSError *attachErr = nil;
+      UNNotificationAttachment *attachment =
+        [UNNotificationAttachment attachmentWithIdentifier:@"contentImage"
+                                                       URL:imageURL
+                                                   options:nil
+                                                     error:&attachErr];
+      if (attachment) {
+        content.attachments = @[attachment];
+      } else {
+        NSLog(@"[!] Failed to attach contentImage: %@", attachErr.localizedDescription);
+      }
     }
   }
 
@@ -357,23 +329,60 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   BOOL success = YES;
   if (bundleID) success &= [self activateAppWithBundleID:bundleID];
   if (command)  success &= [self executeShellCommand:command];
-  if (open)     success &= [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:open]];
+  if (open) {
+    NSURL *url = [NSURL URLWithString:open];
+    if (url) {
+      success &= [[NSWorkspace sharedWorkspace] openURL:url];
+    } else {
+      NSLog(@"[!] Stored open URL is not valid: %@", open);
+      success = NO;
+    }
+  }
 
   completionHandler();
   exit(success ? 0 : 1);
 }
 
+// Activate via NSRunningApplication/NSWorkspace rather than ScriptingBridge:
+// SBApplication sends an Apple Event, which on 10.14+ needs Automation (TCC)
+// consent that a short-lived background process can't meaningfully obtain.
 - (BOOL)activateAppWithBundleID:(NSString *)bundleID;
 {
-  id app = [SBApplication applicationWithBundleIdentifier:bundleID];
-  if (app) {
-    [app activate];
-    return YES;
+  NSRunningApplication *running =
+    [NSRunningApplication runningApplicationsWithBundleIdentifier:bundleID].firstObject;
+  if (running) {
+    return [running activateWithOptions:NSApplicationActivateAllWindows];
+  }
 
-  } else {
-    NSLog(@"Unable to find an application with the specified bundle indentifier.");
+  NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+  NSURL *appURL = [workspace URLForApplicationWithBundleIdentifier:bundleID];
+  if (!appURL) {
+    NSLog(@"Unable to find an application with the specified bundle identifier.");
     return NO;
   }
+
+  if (@available(macOS 10.15, *)) {
+    // openApplicationAtURL: is asynchronous and we exit right after handling
+    // the response, so block (with a timeout) until the launch is confirmed.
+    dispatch_semaphore_t done = dispatch_semaphore_create(0);
+    __block BOOL launched = NO;
+    NSWorkspaceOpenConfiguration *config = [NSWorkspaceOpenConfiguration configuration];
+    config.activates = YES;
+    [workspace openApplicationAtURL:appURL
+                      configuration:config
+                  completionHandler:^(NSRunningApplication *app, NSError *error) {
+      if (error) NSLog(@"Unable to activate application: %@", error.localizedDescription);
+      launched = (app != nil);
+      dispatch_semaphore_signal(done);
+    }];
+    dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)));
+    return launched;
+  }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  return [workspace launchApplication:appURL.path];
+#pragma clang diagnostic pop
 }
 
 - (BOOL)executeShellCommand:(NSString *)command;

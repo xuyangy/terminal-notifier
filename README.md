@@ -119,7 +119,7 @@ built and installed.
 ## Usage
 
 ```sh
-$ ./build/Release/terminal-notifier.app/Contents/MacOS/terminal-notifier -[message|group|list] [VALUE|ID|ID] [options]
+$ ./build/Release/terminal-notifier.app/Contents/MacOS/terminal-notifier -[message|remove|list] [VALUE|ID|ID] [options]
 ```
 
 In order to use terminal-notifier, you have to call the binary _inside_ the
@@ -128,7 +128,7 @@ application bundle.
 If installed with `just install`, run it through the wrapper:
 
 ```sh
-$ terminal-notifier -[message|group|list] [VALUE|ID|ID] [options]
+$ terminal-notifier -[message|remove|list] [VALUE|ID|ID] [options]
 ```
 
 If you'd like notifications to stay on the screen until dismissed, go to System
@@ -235,6 +235,11 @@ Lists details about the specified ‘group’ `ID`.
 Use the special `ID` “ALL” to list details about all currently active messages.
 
 The output of this command is tab-separated, which makes it easy to parse.
+
+Note: `-list` and `-remove` only see notifications posted by the same bundle
+identifier. Notifications sent through `-sender` or `-appIcon` (which use
+per-sender spoof bundles), or by a dev build versus a release build, live in
+separate notification stores and cannot be listed or removed across builds.
 
 -------------------------------------------------------------------------------
 

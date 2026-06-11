@@ -152,15 +152,22 @@ prompt_yns "Did -list ALL print all delivered notifications?"; record "-list ALL
 header "-contentImage"
 # UNNotificationAttachment only accepts a fixed set of types (png/jpg/gif/etc).
 # Transcode a system .icns to PNG via sips for a guaranteed-supported test image.
-TEST_PNG="$(mktemp /tmp/tn-cli-test-image-XXXX).png"
+TEST_PNG_BASE="$(mktemp /tmp/tn-cli-test-image-XXXX)"
+TEST_PNG="$TEST_PNG_BASE.png"
 if /usr/bin/sips -s format png "$GENERIC_ICNS" --out "$TEST_PNG" -Z 256 >/dev/null 2>&1; then
   echo "Expected: banner with an image attached."
   "$BIN" -message "with contentImage" -contentImage "$TEST_PNG"
   prompt_yns "Did the notification show an attached image?"; record "-contentImage" $?
-  rm -f "$TEST_PNG"
+  if [ -f "$TEST_PNG" ]; then
+    echo "  ${G}(source image still exists — attachment correctly used a copy)${Z}"
+  else
+    echo "  ${R}WARNING: source image was consumed by the attachment!${Z}"
+  fi
+  rm -f "$TEST_PNG" "$TEST_PNG_BASE"
 else
   echo "Couldn't transcode test image; skipping."
   record "-contentImage" 2
+  rm -f "$TEST_PNG_BASE"
 fi
 
 # ---------------------------------------------------------------------------

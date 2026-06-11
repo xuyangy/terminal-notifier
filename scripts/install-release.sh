@@ -28,6 +28,13 @@ mkdir -p "$(dirname "$APP_DEST")"
 rm -rf "$APP_DEST"
 cp -R "$tmpdir/terminal-notifier.app" "$APP_DEST"
 
+# Register with Launch Services so the notification permission flow works
+# immediately (matches `just install`). Non-fatal if the tool is missing.
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister"
+if [ -x "$LSREGISTER" ]; then
+  "$LSREGISTER" -f "$APP_DEST" || true
+fi
+
 echo "Installing wrapper to $BIN_DEST"
 mkdir -p "$BIN_DIR"
 cat > "$BIN_DEST" <<EOF

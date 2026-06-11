@@ -14,6 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check tag matches Info.plist version
+        run: |
+          plist_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "Terminal Notifier/Terminal Notifier-Info.plist")
+          if [ "v${plist_version}" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match CFBundleShortVersionString ${plist_version} in Info.plist." >&2
+            echo "::error::Bump the plist version (and CFBundleVersion) before tagging." >&2
+            exit 1
+          fi
+
       - name: Build production app
         run: |
           xcodebuild \
@@ -27,12 +36,7 @@ jobs:
             build
 
       - name: Package app
-        run: |
-          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/Release/terminal-notifier.app/Contents/Info.plist)
-          mkdir -p build/package
-          codesign --verify --deep --strict --verbose=2 build/Release/terminal-notifier.app
-          ditto -c -k --keepParent build/Release/terminal-notifier.app "build/package/terminal-notifier-${version}.zip"
-          cp "build/package/terminal-notifier-${version}.zip" build/package/terminal-notifier.zip
+        run: scripts/package.sh
 
       - name: Create GitHub Release
         env:

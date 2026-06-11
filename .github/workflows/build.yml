@@ -15,8 +15,9 @@ jobs:
         run: |
           bash -n scripts/test-cli.sh
           sh -n scripts/install-release.sh
+          sh -n scripts/package.sh
 
-      - name: Build app
+      - name: Build and analyze app
         run: |
           xcodebuild \
             -project "Terminal Notifier.xcodeproj" \
@@ -26,19 +27,7 @@ jobs:
             -derivedDataPath "$PWD/build/DerivedData" \
             MACOSX_DEPLOYMENT_TARGET=10.14 \
             PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier.dev \
-            build
-
-      - name: Analyze app
-        run: |
-          xcodebuild \
-            -project "Terminal Notifier.xcodeproj" \
-            -scheme "Terminal Notifier" \
-            -configuration Release \
-            SYMROOT="$PWD/build" \
-            -derivedDataPath "$PWD/build/DerivedData" \
-            MACOSX_DEPLOYMENT_TARGET=10.14 \
-            PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier.dev \
-            analyze
+            build analyze
 
       - name: Package production artifact
         run: |
@@ -51,11 +40,7 @@ jobs:
             MACOSX_DEPLOYMENT_TARGET=10.14 \
             PRODUCT_BUNDLE_IDENTIFIER=fr.julienxx.oss.terminal-notifier \
             build
-          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/Release/terminal-notifier.app/Contents/Info.plist)
-          mkdir -p build/package
-          codesign --verify --deep --strict --verbose=2 build/Release/terminal-notifier.app
-          ditto -c -k --keepParent build/Release/terminal-notifier.app "build/package/terminal-notifier-${version}.zip"
-          cp "build/package/terminal-notifier-${version}.zip" build/package/terminal-notifier.zip
+          scripts/package.sh
 
       - uses: actions/upload-artifact@v4
         with:

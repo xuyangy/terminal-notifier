@@ -32,7 +32,7 @@ $ curl -fsSL https://raw.githubusercontent.com/xuyangy/terminal-notifier/master/
 The installer downloads the latest release zip, copies the app to
 `~/Applications/terminal-notifier.app`, registers it with Launch Services, and
 creates a wrapper at `~/.local/bin/terminal-notifier` plus a short `tn` alias
-next to it.
+next to it (skipped with a warning if an unrelated `tn` already exists).
 
 Or manually:
 
@@ -43,7 +43,7 @@ $ mkdir -p ~/Applications ~/.local/bin
 $ cp -R terminal-notifier.app ~/Applications/
 $ printf '#!/bin/sh\nexec "$HOME/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier" "$@"\n' > ~/.local/bin/terminal-notifier
 $ chmod +x ~/.local/bin/terminal-notifier
-$ ln -sf terminal-notifier ~/.local/bin/tn
+$ ln -s terminal-notifier ~/.local/bin/tn   # optional short alias; fails if tn is already taken
 ```
 
 Make sure `~/.local/bin` is on your `PATH`, then run:

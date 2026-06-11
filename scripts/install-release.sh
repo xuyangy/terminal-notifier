@@ -44,10 +44,18 @@ EOF
 chmod +x "$BIN_DEST"
 
 # Short alias; a symlink is fine here because the wrapper it points at
-# execs the app binary by absolute path.
-ln -sf terminal-notifier "$BIN_DIR/tn"
+# execs the app binary by absolute path. Never clobber an unrelated `tn`.
+ALIAS_DEST="$BIN_DIR/tn"
+if [ -L "$ALIAS_DEST" ] && [ "$(readlink "$ALIAS_DEST")" = "terminal-notifier" ]; then
+  : # alias already ours
+elif [ -e "$ALIAS_DEST" ] || [ -L "$ALIAS_DEST" ]; then
+  echo "Warning: $ALIAS_DEST exists and is not the terminal-notifier alias; skipping the tn alias." >&2
+else
+  echo "Installing alias $ALIAS_DEST"
+  ln -s terminal-notifier "$ALIAS_DEST"
+fi
 
-echo "Installed terminal-notifier (alias: tn)."
+echo "Installed terminal-notifier."
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *)

@@ -115,6 +115,34 @@ $ terminal-notifier -group 'address-book-sync' -title 'Address Book Sync' -subti
 
 ![Example 5](assets/Example_5.png)
 
+Run a shell command when the notification is clicked:
+```sh
+$ terminal-notifier -title 'Backup' -message 'Click to view the log' -execute 'open /tmp/backup.log'
+```
+
+Make the notification look like it comes from another app:
+```sh
+$ terminal-notifier -sender com.apple.Safari -title 'Download' -message 'cat-video.mp4 finished'
+```
+
+Attach an image inside the notification:
+```sh
+$ terminal-notifier -title 'Render done' -message 'preview attached' -contentImage /path/to/preview.png
+```
+
+Replace, list, and remove notifications by group:
+```sh
+$ terminal-notifier -group deploy -message 'Deploying 1/3: api'      # posts
+$ terminal-notifier -group deploy -message 'Deploying 2/3: web'      # replaces the first
+$ terminal-notifier -list deploy                                     # shows the current one
+$ terminal-notifier -remove deploy                                   # dismisses it
+```
+
+Break through Focus/Do Not Disturb (macOS 12+, subject to system settings):
+```sh
+$ terminal-notifier -title 'Alert' -message 'Disk almost full' -ignoreDnD
+```
+
 ### Options
 
 `-help`, `-version`

@@ -13,7 +13,7 @@
 		5199792915B1F92B003AFC57 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 5199792715B1F92B003AFC57 /* Credits.rtf */; };
 		5199792C15B1F92B003AFC57 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 5199792B15B1F92B003AFC57 /* AppDelegate.m */; };
 			5199792F15B1F92B003AFC57 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5199792D15B1F92B003AFC57 /* MainMenu.xib */; };
-			5199794C15B302F1003AFC57 /* Terminal.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5199794B15B302F1003AFC57 /* Terminal.icns */; };
+			5199794C15B302F1003AFC57 /* iTerm2.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5199794B15B302F1003AFC57 /* iTerm2.icns */; };
 			AA99990015B1F92B003AFC57 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA99990115B1F92B003AFC57 /* UserNotifications.framework */; };
 /* End PBXBuildFile section */
 
@@ -31,7 +31,7 @@
 		5199792A15B1F92B003AFC57 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		5199792B15B1F92B003AFC57 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 			5199792E15B1F92B003AFC57 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
-			5199794B15B302F1003AFC57 /* Terminal.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Terminal.icns; sourceTree = "<group>"; };
+			5199794B15B302F1003AFC57 /* iTerm2.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = iTerm2.icns; sourceTree = "<group>"; };
 			AA99990115B1F92B003AFC57 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -51,7 +51,7 @@
 		5199790915B1F92B003AFC57 = {
 			isa = PBXGroup;
 			children = (
-				5199794B15B302F1003AFC57 /* Terminal.icns */,
+				5199794B15B302F1003AFC57 /* iTerm2.icns */,
 				5199791E15B1F92B003AFC57 /* Terminal Notifier */,
 				5199791715B1F92B003AFC57 /* Frameworks */,
 				5199791515B1F92B003AFC57 /* Products */,
@@ -163,7 +163,7 @@
 				5199792315B1F92B003AFC57 /* InfoPlist.strings in Resources */,
 				5199792915B1F92B003AFC57 /* Credits.rtf in Resources */,
 				5199792F15B1F92B003AFC57 /* MainMenu.xib in Resources */,
-				5199794C15B302F1003AFC57 /* Terminal.icns in Resources */,
+				5199794C15B302F1003AFC57 /* iTerm2.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

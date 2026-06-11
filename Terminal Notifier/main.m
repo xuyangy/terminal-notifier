@@ -236,7 +236,7 @@ static BOOL BuildSpoofBundle(NSString *spoofAppPath,
     return NO;
   }
   NSString *iconName = info[@"CFBundleIconFile"];
-  if (iconName.length == 0) iconName = @"Terminal";
+  if (iconName.length == 0) iconName = @"iTerm2";
   if (![iconName.pathExtension isEqualToString:@"icns"]) {
     iconName = [iconName stringByAppendingPathExtension:@"icns"];
   }

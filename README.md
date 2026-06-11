@@ -355,8 +355,9 @@ you need them, use [alerter](https://github.com/vjeantet/alerter). The original
 ## License
 
 All the works are available under the MIT license. **Except** for
-‘Terminal.icns’, which is a copy of Apple’s Terminal.app icon and as such is
-copyright of Apple.
+‘iTerm2.icns’, which is a copy of the [iTerm2](https://iterm2.com) app icon
+and as such is copyright of George Nachman and the iTerm2 contributors
+(GPL-2.0).
 
 Copyright (C) 2012-2017 Eloy Durán <eloy.de.enige@gmail.com>, Julien Blanchard
 <julien@sideburns.eu>

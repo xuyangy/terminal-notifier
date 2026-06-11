@@ -63,7 +63,9 @@ $ just install    # copy to ~/Applications + wrapper in ~/.local/bin
 ## Usage
 
 ```sh
-$ terminal-notifier -[message|remove|list] [VALUE|ID|ID] [options]
+$ terminal-notifier -message VALUE [options]
+$ terminal-notifier -remove ID
+$ terminal-notifier -list ID
 ```
 
 At a minimum, specify one of `-message`, `-remove`, or `-list` (or pipe the

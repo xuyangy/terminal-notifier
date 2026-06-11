@@ -46,7 +46,9 @@ void PrintHelpBanner(void) {
   const char *appVersion = [[bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] UTF8String];
   printf("%s (%s) is a command-line tool to send macOS User Notifications.\n" \
          "\n" \
-         "Usage: %s -[message|list|remove] [VALUE|ID|ID] [options]\n" \
+         "Usage: %s -message VALUE [options]\n" \
+         "       %s -remove ID\n" \
+         "       %s -list ID\n" \
          "\n" \
          "   Either of these is required (unless message data is piped to the tool):\n" \
          "\n" \
@@ -87,7 +89,7 @@ void PrintHelpBanner(void) {
          "An example of this is when using an open bracket, which has to be escaped like so: ‘\\[’.\n" \
          "\n" \
          "For more information see https://github.com/julienXX/terminal-notifier.\n",
-         appName, appVersion, appName);
+         appName, appVersion, appName, appName, appName);
 }
 
 // Resolve the .app bundle for a given bundle ID. Uses the modern API on

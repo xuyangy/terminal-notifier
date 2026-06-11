@@ -96,7 +96,9 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
     }
   }
 
-  if ([args containsObject:@"-ignoreDnD"]) {
+  // NSProcessInfo may return the pre-main argument snapshot, so the -dnd
+  // alias rewritten in main() is not necessarily visible here; accept both.
+  if ([args containsObject:@"-ignoreDnD"] || [args containsObject:@"-dnd"]) {
     options[@"ignoreDnD"] = @YES;
   }
 

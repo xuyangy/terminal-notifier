@@ -20,6 +20,93 @@
 // Triggered by `-sender BUNDLE_ID` and/or `-appIcon URL`. Skipped when the
 // TN_SPOOFED env var is set (set by us right before execv, to prevent loops).
 
+// Short option aliases. Rewritten to the canonical long form at the top of
+// main(), before any Foundation code captures the argument list, so
+// NSUserDefaults' -key value parsing, NSProcessInfo, and the spoof handler
+// only ever see the long names. takesValue marks flags whose following
+// argument is a value and must never be rewritten itself.
+typedef struct {
+  const char *canonical;
+  const char *alias;  // NULL when the option has no short form
+  BOOL takesValue;
+} TNOption;
+
+static const TNOption kTNOptions[] = {
+  {"-help",         "-h",   NO},
+  {"-version",      "-v",   NO},
+  {"-message",      "-m",   YES},
+  {"-remove",       "-r",   YES},
+  {"-list",         "-l",   YES},
+  {"-title",        "-t",   YES},
+  {"-subtitle",     "-sub", YES},
+  {"-sound",        "-s",   YES},
+  {"-group",        "-g",   YES},
+  {"-activate",     "-a",   YES},
+  {"-sender",       NULL,   YES},
+  {"-appIcon",      "-i",   YES},
+  {"-contentImage", "-c",   YES},
+  {"-open",         "-o",   YES},
+  {"-execute",      "-e",   YES},
+  {"-ignoreDnD",    "-dnd", NO},
+};
+
+// CoreFoundation snapshots the process arguments before main() runs, so the
+// argv rewrite below is invisible to NSUserDefaults' argument domain. Merge
+// alias values into the argument domain itself so they outrank persistent
+// defaults (e.g. `defaults write <bundle-id> title Old`) exactly like the
+// long forms do. A canonical key already present in the domain — an explicit
+// long flag — keeps precedence over its alias. Must run on the ORIGINAL
+// argv, i.e. before RewriteShortOptions.
+static void RegisterShortOptionAliases(int argc, char *argv[]) {
+  NSMutableDictionary *mapped = [NSMutableDictionary dictionary];
+  for (int i = 1; i < argc; i++) {
+    for (size_t j = 0; j < sizeof(kTNOptions) / sizeof(kTNOptions[0]); j++) {
+      const TNOption *opt = &kTNOptions[j];
+      BOOL isAlias = opt->alias && strcmp(argv[i], opt->alias) == 0;
+      if (isAlias || strcmp(argv[i], opt->canonical) == 0) {
+        if (opt->takesValue) {
+          if (isAlias && i + 1 < argc) {
+            mapped[@(opt->canonical + 1)] = @(argv[i + 1]);  // +1 strips the '-'
+          }
+          i++;  // never treat a flag's value as a flag
+        }
+        break;
+      }
+    }
+  }
+  if (mapped.count == 0) return;
+
+  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+  NSMutableDictionary *argDomain =
+      [[defaults volatileDomainForName:NSArgumentDomain] mutableCopy]
+      ?: [NSMutableDictionary dictionary];
+  for (NSString *key in mapped) {
+    if (argDomain[key] == nil) argDomain[key] = mapped[key];
+  }
+  [defaults setVolatileDomain:argDomain forName:NSArgumentDomain];
+}
+
+// Rewrite aliases in argv itself for the code that reads argv directly:
+// HasArg (-help/-version) and the spoof handler (-sender/-appIcon).
+static void RewriteShortOptions(int argc, char *argv[]) {
+  for (int i = 1; i < argc; i++) {
+    for (size_t j = 0; j < sizeof(kTNOptions) / sizeof(kTNOptions[0]); j++) {
+      const TNOption *opt = &kTNOptions[j];
+      BOOL matched = NO;
+      if (opt->alias && strcmp(argv[i], opt->alias) == 0) {
+        argv[i] = (char *)opt->canonical;
+        matched = YES;
+      } else if (strcmp(argv[i], opt->canonical) == 0) {
+        matched = YES;
+      }
+      if (matched) {
+        if (opt->takesValue) i++;
+        break;
+      }
+    }
+  }
+}
+
 static NSString *FindStringArg(NSArray<NSString *> *args, NSString *flag) {
   NSUInteger idx = [args indexOfObject:flag];
   if (idx == NSNotFound || idx + 1 >= args.count) return nil;
@@ -52,35 +139,35 @@ void PrintHelpBanner(void) {
          "\n" \
          "   Either of these is required (unless message data is piped to the tool):\n" \
          "\n" \
-         "       -help              Display this help banner.\n" \
-         "       -version           Display terminal-notifier version.\n" \
-         "       -message VALUE     The notification message.\n" \
-         "       -remove ID         Removes a notification with the specified ‘group’ ID.\n" \
-         "       -list ID           If the specified ‘group’ ID exists show when it was delivered,\n" \
-         "                          or use ‘ALL’ as ID to see all notifications.\n" \
-         "                          The output is a tab-separated list.\n"
+         "       -h, -help                 Display this help banner.\n" \
+         "       -v, -version              Display terminal-notifier version.\n" \
+         "       -m, -message VALUE        The notification message.\n" \
+         "       -r, -remove ID            Removes a notification with the specified ‘group’ ID.\n" \
+         "       -l, -list ID              If the specified ‘group’ ID exists show when it was delivered,\n" \
+         "                                 or use ‘ALL’ as ID to see all notifications.\n" \
+         "                                 The output is a tab-separated list.\n"
          "\n" \
          "   Optional:\n" \
          "\n" \
-         "       -title VALUE       The notification title. Defaults to ‘Terminal’.\n" \
-         "       -subtitle VALUE    The notification subtitle.\n" \
-         "       -sound NAME        The name of a sound to play when the notification appears. The names are listed\n" \
-         "                          in Sound Preferences. Use 'default' for the default notification sound.\n" \
-         "       -group ID          A string which identifies the group the notifications belong to.\n" \
-         "                          Old notifications with the same ID will be removed.\n" \
-         "       -activate ID       The bundle identifier of the application to activate when the user clicks the notification.\n" \
-         "       -sender ID         Make the notification appear to come from the app with this bundle ID.\n" \
-         "                          terminal-notifier re-launches itself from a cached clone of its .app\n" \
-         "                          bundle whose icon, display name, and bundle ID match the sender.\n" \
-         "                          First use of a given sender shows the macOS notification-permission prompt.\n" \
-         "       -appIcon PATH      Override the notification icon. Accepts .icns directly; other image\n" \
-         "                          formats (png, jpg, tiff, …) are rendered to .icns automatically.\n" \
-         "                          Combines with -sender (keeps the sender's name, swaps the icon).\n" \
-         "       -contentImage URL  The URL of an image to display attached to the notification.\n" \
-         "                          Supported types: png, jpg, jpeg, gif. (.icns is NOT supported.)\n" \
-         "       -open URL          The URL of a resource to open when the user clicks the notification.\n" \
-         "       -execute COMMAND   A shell command to perform when the user clicks the notification.\n" \
-         "       -ignoreDnD         Mark notification as time-sensitive (requires entitlement to bypass Focus/DnD).\n" \
+         "       -t, -title VALUE          The notification title. Defaults to ‘Terminal’.\n" \
+         "       -sub, -subtitle VALUE     The notification subtitle.\n" \
+         "       -s, -sound NAME           The name of a sound to play when the notification appears. The names are listed\n" \
+         "                                 in Sound Preferences. Use 'default' for the default notification sound.\n" \
+         "       -g, -group ID             A string which identifies the group the notifications belong to.\n" \
+         "                                 Old notifications with the same ID will be removed.\n" \
+         "       -a, -activate ID          The bundle identifier of the application to activate when the user clicks the notification.\n" \
+         "       -sender ID                Make the notification appear to come from the app with this bundle ID.\n" \
+         "                                 terminal-notifier re-launches itself from a cached clone of its .app\n" \
+         "                                 bundle whose icon, display name, and bundle ID match the sender.\n" \
+         "                                 First use of a given sender shows the macOS notification-permission prompt.\n" \
+         "       -i, -appIcon PATH         Override the notification icon. Accepts .icns directly; other image\n" \
+         "                                 formats (png, jpg, tiff, …) are rendered to .icns automatically.\n" \
+         "                                 Combines with -sender (keeps the sender's name, swaps the icon).\n" \
+         "       -c, -contentImage URL     The URL of an image to display attached to the notification.\n" \
+         "                                 Supported types: png, jpg, jpeg, gif. (.icns is NOT supported.)\n" \
+         "       -o, -open URL             The URL of a resource to open when the user clicks the notification.\n" \
+         "       -e, -execute COMMAND      A shell command to perform when the user clicks the notification.\n" \
+         "       -dnd, -ignoreDnD          Mark notification as time-sensitive (requires entitlement to bypass Focus/DnD).\n" \
          "\n" \
          "When the user activates a notification, the results are logged to the system logs.\n" \
          "Use Console.app to view these logs.\n" \
@@ -487,6 +574,8 @@ static void HandleSpoofIfNeeded(int argc, char *argv[]) {
 int main(int argc, char *argv[])
 {
     @autoreleasepool {
+        RegisterShortOptionAliases(argc, argv);
+        RewriteShortOptions(argc, argv);
         if (HasArg(argc, argv, "-help")) {
             PrintHelpBanner();
             return 0;

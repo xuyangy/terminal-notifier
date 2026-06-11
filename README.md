@@ -92,7 +92,8 @@ $ terminal-notifier -list ID
 ```
 
 At a minimum, specify one of `-message`, `-remove`, or `-list` (or pipe the
-message body in on stdin). terminal-notifier must run from inside its
+message body in on stdin). Every common option also has a short form, e.g.
+`-m` for `-message` and `-t` for `-title` — see [Options](#options). terminal-notifier must run from inside its
 application bundle — Notification Center identifies the posting application by
 bundle metadata — so invoke it through the installed wrapper or the full
 `terminal-notifier.app/Contents/MacOS/terminal-notifier` path, never a copied
@@ -178,13 +179,13 @@ $ terminal-notifier -title 'Alert' -message 'Disk almost full' -ignoreDnD
 
 ### Options
 
-`-help`, `-version`
+`-h, -help`, `-v, -version`
 
 Print the usage banner or the version, then exit.
 
 -------------------------------------------------------------------------------
 
-`-message VALUE`
+`-m, -message VALUE`
 
 The message body of the notification.
 
@@ -193,19 +194,19 @@ and the piped data will become the message body instead.
 
 -------------------------------------------------------------------------------
 
-`-title VALUE`
+`-t, -title VALUE`
 
 The title of the notification. This defaults to ‘Terminal’.
 
 -------------------------------------------------------------------------------
 
-`-subtitle VALUE`
+`-sub, -subtitle VALUE`
 
 The subtitle of the notification.
 
 -------------------------------------------------------------------------------
 
-`-sound NAME`
+`-s, -sound NAME`
 
 Play the `NAME` sound when the notification appears.
 Sound names are listed in `/System/Library/Sounds` and `~/Library/Sounds`.
@@ -214,7 +215,7 @@ Use the special `NAME` “default” for the default notification sound.
 
 -------------------------------------------------------------------------------
 
-`-group ID`
+`-g, -group ID`
 
 Specifies the notification’s ‘group’. For any ‘group’, only _one_
 notification will ever be shown, replacing previously posted notifications.
@@ -230,7 +231,7 @@ Example group IDs:
 
 -------------------------------------------------------------------------------
 
-`-remove ID`
+`-r, -remove ID`
 
 Remove a previous notification from the `ID` ‘group’, if one exists.
 
@@ -238,7 +239,7 @@ Use the special `ID` “ALL” to remove all messages.
 
 -------------------------------------------------------------------------------
 
-`-list ID`
+`-l, -list ID`
 
 Lists details about the specified ‘group’ `ID`.
 
@@ -253,7 +254,7 @@ separate notification stores and cannot be listed or removed across builds.
 
 -------------------------------------------------------------------------------
 
-`-activate ID`
+`-a, -activate ID`
 
 Activate the application specified by `ID` when the user clicks the
 notification.
@@ -280,7 +281,7 @@ For information on the `ID`, see the `-activate` option.
 
 -------------------------------------------------------------------------------
 
-`-appIcon PATH`
+`-i, -appIcon PATH`
 
 Specify a local image `PATH` or `file://` URL to display instead of the
 application icon. `.icns` files are used directly; other image formats supported
@@ -288,7 +289,7 @@ by `NSImage` are converted to `.icns` for the cached spoof bundle.
 
 -------------------------------------------------------------------------------
 
-`-contentImage PATH`
+`-c, -contentImage PATH`
 
 Specify a local image `PATH` or `file://` URL to attach inside the notification.
 Use common attachment formats such as png, jpg, jpeg, or gif. The original file
@@ -296,14 +297,14 @@ is left in place (a temporary copy is attached).
 
 -------------------------------------------------------------------------------
 
-`-open URL`
+`-o, -open URL`
 
 Open `URL` when the user clicks the notification. This can be a web or file URL,
 or any custom URL scheme.
 
 -------------------------------------------------------------------------------
 
-`-execute COMMAND`
+`-e, -execute COMMAND`
 
 Run the shell command `COMMAND` when the user clicks the notification.
 The command is passed to `/bin/sh -c`, and its output is written to the system
@@ -311,7 +312,7 @@ log (viewable in Console.app).
 
 -------------------------------------------------------------------------------
 
-`-ignoreDnD`
+`-dnd, -ignoreDnD`
 
 Request a time-sensitive notification on macOS 12 and newer. macOS still
 controls whether this can bypass Focus or Do Not Disturb.

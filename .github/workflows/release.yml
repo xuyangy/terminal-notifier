@@ -13,6 +13,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Full history so the release step can diff against the previous tag.
+          fetch-depth: 0
 
       - name: Check tag matches Info.plist version
         run: |
@@ -42,13 +45,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > release-notes.md <<'EOF'
-          macOS 10.14+ build of terminal-notifier using UserNotifications.
-
-          This artifact is built and ad-hoc signed by GitHub Actions. Developer ID
-          signing and notarization are not configured yet, so macOS may show
-          Gatekeeper warnings for downloaded builds.
-          EOF
+          prev_tag=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          {
+            echo "## What's changed"
+            echo
+            if [ -n "$prev_tag" ]; then
+              # The version-bump commit is implied by the release itself.
+              git log --no-merges --format='- %s (%h)' "${prev_tag}..${GITHUB_REF_NAME}" \
+                | grep -v '^- Bump version to ' || true
+              echo
+              echo "**Full diff**: https://github.com/${GITHUB_REPOSITORY}/compare/${prev_tag}...${GITHUB_REF_NAME}"
+            else
+              echo "Initial release."
+            fi
+            echo
+            echo "---"
+            echo
+            echo "macOS 10.14+ build of terminal-notifier using UserNotifications."
+            echo
+            echo "This artifact is built and ad-hoc signed by GitHub Actions. Developer ID"
+            echo "signing and notarization are not configured yet, so macOS may show"
+            echo "Gatekeeper warnings for downloaded builds."
+          } > release-notes.md
 
           gh release create "$GITHUB_REF_NAME" build/package/*.zip \
             --title "$GITHUB_REF_NAME" \

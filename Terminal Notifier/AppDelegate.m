@@ -128,6 +128,23 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
   return imageURL;
 }
 
+// The name this app shows under in System Settings -> Notifications.
+- (NSString *)notificationSettingsDisplayName;
+{
+  NSBundle *bundle = [NSBundle mainBundle];
+  return [bundle objectForInfoDictionaryKey:@"CFBundleDisplayName"]
+      ?: [bundle objectForInfoDictionaryKey:@"CFBundleName"]
+      ?: @"terminal-notifier";
+}
+
+- (void)exitForDeniedAuthorization;
+{
+  NSLog(@"[!] Notifications for '%@' are turned off. Enable them in "
+        @"System Settings -> Notifications -> %@ and try again.",
+        [self notificationSettingsDisplayName], [self notificationSettingsDisplayName]);
+  exit(1);
+}
+
 - (void)requestAuthorizationThenDeliverWithTitle:(NSString *)title
                                         subtitle:(NSString *)subtitle
                                          message:(NSString *)message
@@ -135,22 +152,34 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
                                            sound:(NSString *)sound;
 {
   UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-  UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert | UNAuthorizationOptionSound;
-  [center requestAuthorizationWithOptions:authOptions
-                        completionHandler:^(BOOL granted, NSError * _Nullable error) {
-    if (error) {
-      NSLog(@"[!] Authorization request failed: %@", error.localizedDescription);
-      exit(1);
+  [center getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+    // When the user has switched the app off in System Settings,
+    // requestAuthorizationWithOptions: fails with an unhelpful generic
+    // error, so detect the denial up front and explain how to fix it.
+    if (settings.authorizationStatus == UNAuthorizationStatusDenied) {
+      [self exitForDeniedAuthorization];
     }
-    if (!granted) {
-      NSLog(@"[!] Notification authorization not granted. Enable notifications for terminal-notifier in System Settings.");
-      exit(1);
-    }
-    [self deliverNotificationWithTitle:title
-                              subtitle:subtitle
-                               message:message
-                               options:options
-                                 sound:sound];
+
+    UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert | UNAuthorizationOptionSound;
+    [center requestAuthorizationWithOptions:authOptions
+                          completionHandler:^(BOOL granted, NSError * _Nullable error) {
+      if (error) {
+        if ([error.domain isEqualToString:UNErrorDomain]
+            && error.code == UNErrorCodeNotificationsNotAllowed) {
+          [self exitForDeniedAuthorization];
+        }
+        NSLog(@"[!] Authorization request failed: %@", error.localizedDescription);
+        exit(1);
+      }
+      if (!granted) {
+        [self exitForDeniedAuthorization];
+      }
+      [self deliverNotificationWithTitle:title
+                                subtitle:subtitle
+                                 message:message
+                                 options:options
+                                   sound:sound];
+    }];
   }];
 }
 

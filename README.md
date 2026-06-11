@@ -31,7 +31,8 @@ $ curl -fsSL https://raw.githubusercontent.com/xuyangy/terminal-notifier/master/
 
 The installer downloads the latest release zip, copies the app to
 `~/Applications/terminal-notifier.app`, registers it with Launch Services, and
-creates a wrapper at `~/.local/bin/terminal-notifier`.
+creates a wrapper at `~/.local/bin/terminal-notifier` plus a short `tn` alias
+next to it.
 
 Or manually:
 
@@ -42,12 +43,14 @@ $ mkdir -p ~/Applications ~/.local/bin
 $ cp -R terminal-notifier.app ~/Applications/
 $ printf '#!/bin/sh\nexec "$HOME/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier" "$@"\n' > ~/.local/bin/terminal-notifier
 $ chmod +x ~/.local/bin/terminal-notifier
+$ ln -sf terminal-notifier ~/.local/bin/tn
 ```
 
 Make sure `~/.local/bin` is on your `PATH`, then run:
 
 ```sh
 $ terminal-notifier -message "installed OK"
+$ tn -message "short alias works too"
 ```
 
 ### From source
@@ -57,8 +60,28 @@ Requires full Xcode (not only Command Line Tools) and
 
 ```sh
 $ just build      # development app at build/Release/terminal-notifier.app
-$ just install    # copy to ~/Applications + wrapper in ~/.local/bin
+$ just install    # copy to ~/Applications + wrapper & tn alias in ~/.local/bin
 ```
+
+### Uninstall
+
+Whichever way you installed, removal is the same. Run the uninstall script:
+
+```sh
+$ curl -fsSL https://raw.githubusercontent.com/xuyangy/terminal-notifier/master/scripts/uninstall.sh | sh
+```
+
+Or, from a source checkout:
+
+```sh
+$ just uninstall
+```
+
+Either one unregisters the app from Launch Services, then deletes
+`~/Applications/terminal-notifier.app`, `~/.local/bin/terminal-notifier`, and
+the `tn` alias.
+The app's entry under System Settings -> Notifications disappears on its own
+once the app is gone.
 
 ## Usage
 

@@ -43,7 +43,11 @@ exec "$APP_DEST/Contents/MacOS/terminal-notifier" "\$@"
 EOF
 chmod +x "$BIN_DEST"
 
-echo "Installed terminal-notifier."
+# Short alias; a symlink is fine here because the wrapper it points at
+# execs the app binary by absolute path.
+ln -sf terminal-notifier "$BIN_DIR/tn"
+
+echo "Installed terminal-notifier (alias: tn)."
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *)

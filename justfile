@@ -77,4 +77,11 @@ install: build
     # makes UserNotifications see no bundle and hang on authorization.
     printf '#!/bin/sh\nexec "{{install_app}}/Contents/MacOS/terminal-notifier" "$@"\n' > "{{install_prefix}}/bin/terminal-notifier"
     chmod +x "{{install_prefix}}/bin/terminal-notifier"
-    @echo "Installed terminal-notifier to {{install_prefix}}/bin/terminal-notifier"
+    ln -sf terminal-notifier "{{install_prefix}}/bin/tn"
+    @echo "Installed terminal-notifier to {{install_prefix}}/bin/terminal-notifier (alias: tn)"
+
+# Remove the app from ~/Applications and the wrapper from ~/.local/bin
+uninstall:
+    TERMINAL_NOTIFIER_APP_DEST="{{install_app}}" \
+        TERMINAL_NOTIFIER_BIN_DIR="{{install_prefix}}/bin" \
+        scripts/uninstall.sh

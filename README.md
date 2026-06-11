@@ -59,11 +59,34 @@ Requires full Xcode (not only Command Line Tools) and
 [just](https://github.com/casey/just):
 
 ```sh
-$ just build      # development app at build/Release/terminal-notifier.app
-$ just install    # copy to ~/Applications + wrapper & tn alias in ~/.local/bin
+$ just install    # builds, then installs to ~/Applications + wrapper & tn alias in ~/.local/bin
 ```
 
-### Uninstall
+## Update
+
+Installing is idempotent, so updating is just installing again. Re-run the
+installer to fetch and switch to the latest release:
+
+```sh
+$ curl -fsSL https://raw.githubusercontent.com/xuyangy/terminal-notifier/master/scripts/install-release.sh | sh
+```
+
+Or, from a source checkout:
+
+```sh
+$ git pull
+$ just install
+```
+
+The app in `~/Applications` is replaced in place; notification permission is
+keyed to the bundle identifier, so it carries over without re-prompting. Check
+what you are running with:
+
+```sh
+$ terminal-notifier -version
+```
+
+## Uninstall
 
 Whichever way you installed, removal is the same. Run the uninstall script:
 

@@ -99,36 +99,42 @@ Use a custom icon:
 $ terminal-notifier -title ProjectX -subtitle "new tag detected" -message "Finished" -appIcon /path/to/icon.png
 ```
 
-![Example 3](assets/Example_3.png)
+![Example 2](assets/Example_2.png)
 
 Open an URL when the notification is clicked:
 ```sh
 $ terminal-notifier -title 'Stock' -message 'Check your Apple stock!' -open 'https://finance.yahoo.com/quote/AAPL'
 ```
 
-![Example 4](assets/Example_4.png)
+![Example 3](assets/Example_3.png)
 
 Open an app when the notification is clicked:
 ```sh
 $ terminal-notifier -group 'address-book-sync' -title 'Address Book Sync' -subtitle 'Finished' -message 'Imported 42 contacts.' -activate 'com.apple.AddressBook'
 ```
 
-![Example 5](assets/Example_5.png)
+![Example 4](assets/Example_4.png)
 
 Run a shell command when the notification is clicked:
 ```sh
 $ terminal-notifier -title 'Backup' -message 'Click to view the log' -execute 'open /tmp/backup.log'
 ```
 
+![Example 5](assets/Example_5.png)
+
 Make the notification look like it comes from another app:
 ```sh
 $ terminal-notifier -sender com.apple.Safari -title 'Download' -message 'cat-video.mp4 finished'
 ```
 
+![Example 6](assets/Example_6.png)
+
 Attach an image inside the notification:
 ```sh
-$ terminal-notifier -title 'Render done' -message 'preview attached' -contentImage /path/to/preview.png
+$ terminal-notifier -title 'Render done' -message 'preview attached' -contentImage assets/System_prefs.png
 ```
+
+![Example 7](assets/Example_7.png)
 
 Replace, list, and remove notifications by group:
 ```sh
@@ -138,10 +144,14 @@ $ terminal-notifier -list deploy                                     # shows the
 $ terminal-notifier -remove deploy                                   # dismisses it
 ```
 
+![Example 8](assets/Example_8.png)
+
 Break through Focus/Do Not Disturb (macOS 12+, subject to system settings):
 ```sh
 $ terminal-notifier -title 'Alert' -message 'Disk almost full' -ignoreDnD
 ```
+
+![Example 9](assets/Example_9.png)
 
 ### Options
 

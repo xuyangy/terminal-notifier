@@ -47,6 +47,7 @@ static const TNOption kTNOptions[] = {
   {"-contentImage", "-c",   YES},
   {"-open",         "-o",   YES},
   {"-execute",      "-e",   YES},
+  {"-wait",         NULL,   NO},
   {"-ignoreDnD",    "-dnd", NO},
 };
 
@@ -57,6 +58,11 @@ static const TNOption kTNOptions[] = {
 // long forms do. A canonical key already present in the domain — an explicit
 // long flag — keeps precedence over its alias. Must run on the ORIGINAL
 // argv, i.e. before RewriteShortOptions.
+//
+// No-value flags (-wait, -ignoreDnD, …) are registered here too, as @YES.
+// This is the only argv scan that knows which tokens are flags and which are
+// values, so it's the one place that can tell `-wait` apart from, say,
+// `-message "-wait"`. AppDelegate reads them back through NSUserDefaults.
 static void RegisterShortOptionAliases(int argc, char *argv[]) {
   NSMutableDictionary *mapped = [NSMutableDictionary dictionary];
   for (int i = 1; i < argc; i++) {
@@ -69,6 +75,8 @@ static void RegisterShortOptionAliases(int argc, char *argv[]) {
             mapped[@(opt->canonical + 1)] = @(argv[i + 1]);  // +1 strips the '-'
           }
           i++;  // never treat a flag's value as a flag
+        } else {
+          mapped[@(opt->canonical + 1)] = @YES;
         }
         break;
       }
@@ -81,7 +89,12 @@ static void RegisterShortOptionAliases(int argc, char *argv[]) {
       [[defaults volatileDomainForName:NSArgumentDomain] mutableCopy]
       ?: [NSMutableDictionary dictionary];
   for (NSString *key in mapped) {
-    if (argDomain[key] == nil) argDomain[key] = mapped[key];
+    // Alias values only fill in when the explicit long flag is absent. Flag
+    // presences (@YES) always win: the only way the domain already has the
+    // key is CF accidentally pairing the flag with the following argument.
+    if ([mapped[key] isKindOfClass:[NSNumber class]] || argDomain[key] == nil) {
+      argDomain[key] = mapped[key];
+    }
   }
   [defaults setVolatileDomain:argDomain forName:NSArgumentDomain];
 }
@@ -167,6 +180,7 @@ void PrintHelpBanner(void) {
          "                                 Supported types: png, jpg, jpeg, gif. (.icns is NOT supported.)\n" \
          "       -o, -open URL             The URL of a resource to open when the user clicks the notification.\n" \
          "       -e, -execute COMMAND      A shell command to perform when the user clicks the notification.\n" \
+         "       -wait                     Wait for Return on the controlling terminal and treat it like a notification click.\n" \
          "       -dnd, -ignoreDnD          Mark notification as time-sensitive (requires entitlement to bypass Focus/DnD).\n" \
          "\n" \
          "When the user activates a notification, the results are logged to the system logs.\n" \

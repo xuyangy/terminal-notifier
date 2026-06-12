@@ -194,6 +194,18 @@ else
   record "-execute" $?
 fi
 
+header "-wait Return activation"
+MARKER="/tmp/tn-cli-test-wait-$$"
+rm -f "$MARKER"
+echo "Expected: banner appears. Press Enter in this terminal. File $MARKER will be created."
+"$BIN" -message "press Enter to run shell" -execute "touch $MARKER" -wait
+if [ -f "$MARKER" ]; then
+  record "-wait" 0
+  rm -f "$MARKER"
+else
+  record "-wait" 1
+fi
+
 header "-activate on click"
 echo "Expected: banner appears. CLICK IT. Calculator.app comes to the foreground."
 "$BIN" -message "click to activate Calculator" -activate "com.apple.calculator"

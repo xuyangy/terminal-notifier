@@ -123,8 +123,9 @@ bundle metadata — so invoke it through the installed wrapper or the full
 or symlinked bare binary.
 
 Exit status: `0` on success, `1` on bad arguments, denied notification
-permission, or a failed click action, `2` if delivery does not complete within
-ten seconds.
+permission, a failed click action, or a `-wait` that can't complete (no
+controlling terminal, EOF instead of Return, or the notification was already
+dismissed), `2` if delivery does not complete within ten seconds.
 
 If you'd like notifications to stay on the screen until dismissed, go to System
 Settings -> Notifications -> terminal-notifier and change the style from Banners
@@ -161,6 +162,12 @@ $ terminal-notifier -group 'address-book-sync' -title 'Address Book Sync' -subti
 ```
 
 ![Example 4](assets/Example_4.png)
+
+Wait for Return in the terminal and treat it like a click while the
+notification is still delivered:
+```sh
+$ terminal-notifier -message 'Build finished' -open 'https://example.com' -wait
+```
 
 Run a shell command when the notification is clicked:
 ```sh
@@ -332,6 +339,16 @@ or any custom URL scheme.
 Run the shell command `COMMAND` when the user clicks the notification.
 The command is passed to `/bin/sh -c`, and its output is written to the system
 log (viewable in Console.app).
+
+-------------------------------------------------------------------------------
+
+`-wait`
+
+Keep terminal-notifier running until you press Return on the controlling
+terminal. If the notification is still delivered, Return removes it and runs the
+same `-open`, `-activate`, or `-execute` behavior as clicking the notification.
+Unlike a click, which logs to the system log, an `-execute` command run via
+Return writes its output to the terminal.
 
 -------------------------------------------------------------------------------
 

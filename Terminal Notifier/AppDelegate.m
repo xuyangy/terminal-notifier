@@ -3,6 +3,16 @@
 
 NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier";
 
+// Exactly one shutdown path may run the activation and exit: a notification
+// click, the -wait Return handler, the delivery timeout, or the delivery
+// completion itself. With -wait the first two are live concurrently (the UN
+// delegate callback's queue is unspecified), so whoever claims shutdown
+// first owns it and everyone else backs off.
+static atomic_flag TNShutdownClaimed = ATOMIC_FLAG_INIT;
+static BOOL TNClaimShutdown(void) {
+  return !atomic_flag_test_and_set(&TNShutdownClaimed);
+}
+
 @implementation NSUserDefaults (SubscriptAndUnescape)
 - (id)objectForKeyedSubscript:(id)key;
 {
@@ -29,8 +39,8 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
 - (void)applicationDidFinishLaunching:(NSNotification *)notification;
 {
   // -help and -version are handled in main() before NSApplicationMain.
-  NSArray<NSString *> *args = [[NSProcessInfo processInfo] arguments];
-
+  // No-value flags (-wait, -ignoreDnD) are merged into the argument domain
+  // by main(), so everything is read through NSUserDefaults here.
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
   NSString *subtitle = defaults[@"subtitle"];
   NSString *message  = defaults[@"message"];
@@ -83,6 +93,7 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
   if (defaults[@"group"])    options[@"groupID"]          = defaults[@"group"];
   if (defaults[@"execute"])  options[@"command"]          = defaults[@"execute"];
   if (defaults[@"contentImage"]) options[@"contentImage"] = defaults[@"contentImage"];
+  if (defaults[@"wait"])     options[@"waitForActivation"] = @YES;
 
   if (defaults[@"open"]) {
     NSURL *url = [NSURL URLWithString:defaults[@"open"]];
@@ -96,11 +107,7 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
     }
   }
 
-  // NSProcessInfo may return the pre-main argument snapshot, so the -dnd
-  // alias rewritten in main() is not necessarily visible here; accept both.
-  if ([args containsObject:@"-ignoreDnD"] || [args containsObject:@"-dnd"]) {
-    options[@"ignoreDnD"] = @YES;
-  }
+  if (defaults[@"ignoreDnD"]) options[@"ignoreDnD"] = @YES;
 
   void (^deliverIfNeeded)(void) = ^{
     if (message) {
@@ -251,9 +258,9 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
                                                                        trigger:nil];
 
   UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-  __block atomic_flag exited = ATOMIC_FLAG_INIT;
+  __block atomic_bool deliveryCompleted = ATOMIC_VAR_INIT(false);
   void (^safeExit)(int) = ^(int status) {
-    if (!atomic_flag_test_and_set(&exited)) {
+    if (TNClaimShutdown()) {
       exit(status);
     }
   };
@@ -263,13 +270,22 @@ NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier"
       NSLog(@"[!] Failed to deliver notification: %@", error.localizedDescription);
       safeExit(1);
     }
-    safeExit(0);
+    atomic_store(&deliveryCompleted, true);
+    if (options[@"waitForActivation"]) {
+      [self waitForEnterToActivateNotificationWithIdentifier:identifier
+                                                      center:center
+                                                        exit:safeExit];
+    } else {
+      safeExit(0);
+    }
   }];
 
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{
-    NSLog(@"[!] Notification delivery did not complete within 10 seconds.");
-    safeExit(2);
+    if (!atomic_load(&deliveryCompleted)) {
+      NSLog(@"[!] Notification delivery did not complete within 10 seconds.");
+      safeExit(2);
+    }
   });
 }
 
@@ -341,25 +357,101 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 {
   _responseHandled = YES;
 
+  if (!TNClaimShutdown()) {
+    // The -wait Return path already owns the activation; let it exit.
+    completionHandler();
+    return;
+  }
+
   UNNotification *userNotification = response.notification;
-  NSDictionary *userInfo = userNotification.request.content.userInfo;
+  BOOL success = [self activateNotificationWithUserInfo:userNotification.request.content.userInfo
+                                                  title:userNotification.request.content.title
+                                               subtitle:userNotification.request.content.subtitle
+                                                message:userNotification.request.content.body
+                                            logActivation:YES];
+
+  completionHandler();
+  exit(success ? 0 : 1);
+}
+
+- (void)waitForEnterToActivateNotificationWithIdentifier:(NSString *)identifier
+                                                  center:(UNUserNotificationCenter *)center
+                                                    exit:(void (^)(int))safeExit;
+{
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    FILE *tty = fopen("/dev/tty", "r");
+    if (!tty) {
+      NSLog(@"[!] -wait requires an interactive controlling terminal.");
+      safeExit(1);
+      return;
+    }
+
+    int ch = EOF;
+    do {
+      ch = fgetc(tty);
+    } while (ch != EOF && ch != '\n' && ch != '\r');
+    fclose(tty);
+
+    if (ch == EOF) {
+      NSLog(@"[!] Failed to read Return from the controlling terminal.");
+      safeExit(1);
+      return;
+    }
+
+    [center getDeliveredNotificationsWithCompletionHandler:^(NSArray<UNNotification *> *notifications) {
+      UNNotification *matched = nil;
+      for (UNNotification *notification in notifications) {
+        if ([notification.request.identifier isEqualToString:identifier]) {
+          matched = notification;
+          break;
+        }
+      }
+
+      if (!matched) {
+        NSLog(@"[!] Notification is no longer delivered; Return was ignored.");
+        safeExit(1);
+        return;
+      }
+
+      [center removeDeliveredNotificationsWithIdentifiers:@[identifier]];
+      dispatch_async(dispatch_get_main_queue(), ^{
+        if (!TNClaimShutdown()) return;  // a click owns the activation; it will exit
+        BOOL success = [self activateNotificationWithUserInfo:matched.request.content.userInfo
+                                                        title:matched.request.content.title
+                                                     subtitle:matched.request.content.subtitle
+                                                      message:matched.request.content.body
+                                                logActivation:NO];
+        exit(success ? 0 : 1);
+      });
+    }];
+  });
+}
+
+- (BOOL)activateNotificationWithUserInfo:(NSDictionary *)userInfo
+                                   title:(NSString *)title
+                                subtitle:(NSString *)subtitle
+                                 message:(NSString *)message
+                           logActivation:(BOOL)logActivation;
+{
   NSString *groupID  = userInfo[@"groupID"];
   NSString *bundleID = userInfo[@"bundleID"];
   NSString *command  = userInfo[@"command"];
   NSString *open     = userInfo[@"open"];
 
-  NSLog(@"User activated notification:");
-  NSLog(@" group ID: %@", groupID);
-  NSLog(@"    title: %@", userNotification.request.content.title);
-  NSLog(@" subtitle: %@", userNotification.request.content.subtitle);
-  NSLog(@"  message: %@", userNotification.request.content.body);
-  NSLog(@"bundle ID: %@", bundleID);
-  NSLog(@"  command: %@", command);
-  NSLog(@"     open: %@", open);
+  if (logActivation) {
+    NSLog(@"User activated notification:");
+    NSLog(@" group ID: %@", groupID);
+    NSLog(@"    title: %@", title);
+    NSLog(@" subtitle: %@", subtitle);
+    NSLog(@"  message: %@", message);
+    NSLog(@"bundle ID: %@", bundleID);
+    NSLog(@"  command: %@", command);
+    NSLog(@"     open: %@", open);
+  }
 
   BOOL success = YES;
   if (bundleID) success &= [self activateAppWithBundleID:bundleID];
-  if (command)  success &= [self executeShellCommand:command];
+  if (command)  success &= [self executeShellCommand:command logOutput:logActivation];
   if (open) {
     NSURL *url = [NSURL URLWithString:open];
     if (url) {
@@ -370,8 +462,7 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
     }
   }
 
-  completionHandler();
-  exit(success ? 0 : 1);
+  return success;
 }
 
 // Activate via NSRunningApplication/NSWorkspace rather than ScriptingBridge:
@@ -416,26 +507,34 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 #pragma clang diagnostic pop
 }
 
-- (BOOL)executeShellCommand:(NSString *)command;
+- (BOOL)executeShellCommand:(NSString *)command logOutput:(BOOL)logOutput;
 {
-  NSPipe *pipe = [NSPipe pipe];
-  NSFileHandle *fileHandle = [pipe fileHandleForReading];
-
   NSTask *task = [NSTask new];
   task.launchPath = @"/bin/sh";
   task.arguments = @[@"-c", command];
-  task.standardOutput = pipe;
-  task.standardError = pipe;
+
+  // With logOutput (click activation, no terminal) the output is captured
+  // for the system log. Without it (-wait) the command inherits our
+  // stdout/stderr, so its output lands on the controlling terminal.
+  NSFileHandle *fileHandle = nil;
+  if (logOutput) {
+    NSPipe *pipe = [NSPipe pipe];
+    fileHandle = [pipe fileHandleForReading];
+    task.standardOutput = pipe;
+    task.standardError = pipe;
+  }
   [task launch];
 
-  NSData *data = nil;
-  NSMutableData *accumulatedData = [NSMutableData data];
-  while ((data = [fileHandle availableData]) && [data length]) {
-    [accumulatedData appendData:data];
+  if (fileHandle) {
+    NSData *data = nil;
+    NSMutableData *accumulatedData = [NSMutableData data];
+    while ((data = [fileHandle availableData]) && [data length]) {
+      [accumulatedData appendData:data];
+    }
+    NSLog(@"command output:\n%@", [[NSString alloc] initWithData:accumulatedData encoding:NSUTF8StringEncoding]);
   }
 
   [task waitUntilExit];
-  NSLog(@"command output:\n%@", [[NSString alloc] initWithData:accumulatedData encoding:NSUTF8StringEncoding]);
   return [task terminationStatus] == 0;
 }
 

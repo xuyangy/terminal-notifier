@@ -48,6 +48,7 @@ static const TNOption kTNOptions[] = {
   {"-open",         "-o",   YES},
   {"-execute",      "-e",   YES},
   {"-wait",         NULL,   NO},
+  {"-focus",        NULL,   NO},
   {"-ignoreDnD",    "-dnd", NO},
 };
 
@@ -181,6 +182,7 @@ void PrintHelpBanner(void) {
          "       -o, -open URL             The URL of a resource to open when the user clicks the notification.\n" \
          "       -e, -execute COMMAND      A shell command to perform when the user clicks the notification.\n" \
          "       -wait                     Wait for Return on the controlling terminal and treat it like a notification click.\n" \
+         "       -focus                    Focus the originating terminal/tmux pane when the user clicks the notification.\n" \
          "       -dnd, -ignoreDnD          Mark notification as time-sensitive (requires entitlement to bypass Focus/DnD).\n" \
          "\n" \
          "When the user activates a notification, the results are logged to the system logs.\n" \

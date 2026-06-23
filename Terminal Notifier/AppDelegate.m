@@ -1,5 +1,6 @@
 #import "AppDelegate.h"
 #import <stdatomic.h>
+#import <unistd.h>
 
 NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier";
 
@@ -94,6 +95,7 @@ static BOOL TNClaimShutdown(void) {
   if (defaults[@"execute"])  options[@"command"]          = defaults[@"execute"];
   if (defaults[@"contentImage"]) options[@"contentImage"] = defaults[@"contentImage"];
   if (defaults[@"wait"])     options[@"waitForActivation"] = @YES;
+  if (defaults[@"focus"])    options[@"focusOrigin"] = [self currentFocusOrigin];
 
   if (defaults[@"open"]) {
     NSURL *url = [NSURL URLWithString:defaults[@"open"]];
@@ -190,6 +192,183 @@ static BOOL TNClaimShutdown(void) {
                                    sound:sound];
     }];
   }];
+}
+
+- (NSString *)trimmedString:(NSString *)string;
+{
+  return [string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+}
+
+- (NSString *)ttyNameForFileDescriptor:(int)fd;
+{
+  char *name = ttyname(fd);
+  return name ? @(name) : nil;
+}
+
+- (NSString *)currentProcessTTY;
+{
+  return [self ttyNameForFileDescriptor:STDOUT_FILENO]
+      ?: [self ttyNameForFileDescriptor:STDERR_FILENO]
+      ?: [self ttyNameForFileDescriptor:STDIN_FILENO];
+}
+
+- (NSString *)pathForExecutable:(NSString *)executableName;
+{
+  NSMutableArray<NSString *> *directories = [NSMutableArray array];
+  NSString *pathEnv = [NSProcessInfo processInfo].environment[@"PATH"];
+  if (pathEnv.length > 0) {
+    [directories addObjectsFromArray:[pathEnv componentsSeparatedByString:@":"]];
+  }
+  [directories addObjectsFromArray:@[@"/opt/homebrew/bin", @"/usr/local/bin", @"/usr/bin", @"/bin"]];
+
+  NSFileManager *fm = [NSFileManager defaultManager];
+  NSMutableSet<NSString *> *seen = [NSMutableSet set];
+  for (NSString *directory in directories) {
+    if (directory.length == 0 || ![directory hasPrefix:@"/"] || [seen containsObject:directory]) continue;
+    [seen addObject:directory];
+    NSString *path = [directory stringByAppendingPathComponent:executableName];
+    if ([fm isExecutableFileAtPath:path]) return path;
+  }
+  return nil;
+}
+
+- (int)runTaskAtPath:(NSString *)launchPath
+           arguments:(NSArray<NSString *> *)arguments
+         environment:(NSDictionary<NSString *, NSString *> *)environment
+              output:(NSString **)output;
+{
+  NSTask *task = [NSTask new];
+  task.launchPath = launchPath;
+  task.arguments = arguments;
+  if (environment) {
+    NSMutableDictionary *taskEnv = [[[NSProcessInfo processInfo] environment] mutableCopy];
+    [taskEnv addEntriesFromDictionary:environment];
+    task.environment = taskEnv;
+  }
+
+  NSPipe *pipe = [NSPipe pipe];
+  task.standardOutput = pipe;
+  task.standardError = pipe;
+
+  @try {
+    [task launch];
+    NSData *data = [[pipe fileHandleForReading] readDataToEndOfFile];
+    [task waitUntilExit];
+    if (output) {
+      *output = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
+    }
+    return task.terminationStatus;
+  } @catch (NSException *exception) {
+    if (output) *output = @"";
+    return -1;
+  }
+}
+
+- (NSArray<NSString *> *)tmuxArgumentsWithSocket:(NSString *)socket
+                                         command:(NSArray<NSString *> *)command;
+{
+  NSMutableArray<NSString *> *arguments = [NSMutableArray array];
+  if (socket.length > 0) {
+    [arguments addObjectsFromArray:@[@"-S", socket]];
+  }
+  [arguments addObjectsFromArray:command];
+  return arguments;
+}
+
+- (NSDictionary *)tmuxOriginInfoWithPath:(NSString *)tmuxPath
+                                  socket:(NSString *)socket
+                                    pane:(NSString *)pane;
+{
+  NSString *format = @"#{client_tty}\t#{session_id}\t#{window_id}\t#{pane_id}";
+  NSString *output = nil;
+  NSArray *arguments = [self tmuxArgumentsWithSocket:socket
+                                             command:@[@"display-message", @"-p", @"-t", pane, format]];
+  if ([self runTaskAtPath:tmuxPath arguments:arguments environment:nil output:&output] != 0) {
+    return @{};
+  }
+
+  NSArray<NSString *> *fields = [[self trimmedString:output] componentsSeparatedByString:@"\t"];
+  if (fields.count < 4) return @{};
+
+  NSMutableDictionary *info = [NSMutableDictionary dictionary];
+  if (fields[0].length > 0) info[@"clientTTY"] = fields[0];
+  if (fields[1].length > 0) info[@"sessionID"] = fields[1];
+  if (fields[2].length > 0) info[@"windowID"] = fields[2];
+  if (fields[3].length > 0) info[@"paneID"] = fields[3];
+
+  NSString *clientOutput = nil;
+  NSString *clientFormat = @"#{client_tty}\t#{client_session}\t#{client_window}\t#{client_active_pane}";
+  NSArray *clientArguments = [self tmuxArgumentsWithSocket:socket
+                                                   command:@[@"list-clients", @"-F", clientFormat]];
+  if ([self runTaskAtPath:tmuxPath arguments:clientArguments environment:nil output:&clientOutput] == 0) {
+    NSString *fallbackTTY = nil;
+    for (NSString *line in [clientOutput componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]) {
+      NSArray<NSString *> *clientFields = [line componentsSeparatedByString:@"\t"];
+      if (clientFields.count < 4 || [clientFields[0] length] == 0) continue;
+
+      BOOL samePane = [clientFields[3] isEqualToString:info[@"paneID"]];
+      BOOL sameWindow = [clientFields[1] isEqualToString:info[@"sessionID"]]
+          && [clientFields[2] isEqualToString:info[@"windowID"]];
+      if (samePane) {
+        info[@"clientTTY"] = clientFields[0];
+        break;
+      }
+      if (sameWindow && fallbackTTY.length == 0) {
+        fallbackTTY = clientFields[0];
+      }
+    }
+    if (fallbackTTY.length > 0 && info[@"clientTTY"] == nil) {
+      info[@"clientTTY"] = fallbackTTY;
+    }
+  }
+  return info;
+}
+
+- (NSString *)terminalBundleIDForEnvironment:(NSDictionary *)environment;
+{
+  NSString *termProgram = environment[@"TERM_PROGRAM"];
+  if ([termProgram isEqualToString:@"iTerm.app"]) return @"com.googlecode.iterm2";
+  if ([termProgram isEqualToString:@"Apple_Terminal"]) return @"com.apple.Terminal";
+  return nil;
+}
+
+- (NSDictionary *)currentFocusOrigin;
+{
+  NSDictionary *environment = [NSProcessInfo processInfo].environment;
+  NSMutableDictionary *origin = [NSMutableDictionary dictionary];
+
+  NSString *processTTY = [self currentProcessTTY];
+  if (processTTY.length > 0) {
+    origin[@"terminalTTY"] = processTTY;
+  }
+
+  NSString *terminalBundleID = [self terminalBundleIDForEnvironment:environment];
+  if (terminalBundleID.length > 0) origin[@"terminalBundleID"] = terminalBundleID;
+
+  NSString *tmuxEnv = environment[@"TMUX"];
+  NSString *tmuxPane = environment[@"TMUX_PANE"];
+  if (tmuxEnv.length > 0 && tmuxPane.length > 0) {
+    origin[@"kind"] = @"tmux";
+    origin[@"tmuxEnv"] = tmuxEnv;
+    origin[@"tmuxPane"] = tmuxPane;
+
+    NSString *socket = [tmuxEnv componentsSeparatedByString:@","].firstObject;
+    if (socket.length > 0) origin[@"tmuxSocket"] = socket;
+
+    NSString *tmuxPath = [self pathForExecutable:@"tmux"];
+    if (tmuxPath.length > 0) {
+      origin[@"tmuxPath"] = tmuxPath;
+      NSDictionary *tmuxInfo = [self tmuxOriginInfoWithPath:tmuxPath socket:socket pane:tmuxPane];
+      [origin addEntriesFromDictionary:tmuxInfo];
+      if ([tmuxInfo[@"clientTTY"] length] > 0) {
+        origin[@"terminalTTY"] = tmuxInfo[@"clientTTY"];
+      }
+    }
+  } else {
+    origin[@"kind"] = @"terminal";
+  }
+
+  return origin.count > 0 ? origin : @{@"kind": @"unknown"};
 }
 
 - (void)deliverNotificationWithTitle:(NSString *)title
@@ -427,6 +606,158 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   });
 }
 
+- (NSString *)appleScriptStringLiteral:(NSString *)string;
+{
+  NSMutableString *escaped = [string mutableCopy] ?: [NSMutableString string];
+  [escaped replaceOccurrencesOfString:@"\\" withString:@"\\\\" options:0 range:NSMakeRange(0, escaped.length)];
+  [escaped replaceOccurrencesOfString:@"\"" withString:@"\\\"" options:0 range:NSMakeRange(0, escaped.length)];
+  return [NSString stringWithFormat:@"\"%@\"", escaped];
+}
+
+- (BOOL)runAppleScript:(NSString *)script;
+{
+  NSString *output = nil;
+  int status = [self runTaskAtPath:@"/usr/bin/osascript"
+                         arguments:@[@"-e", script]
+                       environment:nil
+                            output:&output];
+  NSString *trimmed = [self trimmedString:output];
+  if (status == 0 && [trimmed isEqualToString:@"ok"]) return YES;
+  if (trimmed.length > 0) {
+    NSLog(@"[!] Focus AppleScript did not complete: %@", trimmed);
+  }
+  return NO;
+}
+
+- (BOOL)focusITermSessionWithTTY:(NSString *)tty applicationName:(NSString *)applicationName;
+{
+  NSString *ttyLiteral = [self appleScriptStringLiteral:tty];
+  NSString *ttyNameLiteral = [self appleScriptStringLiteral:tty.lastPathComponent ?: tty];
+  NSString *applicationLiteral = [self appleScriptStringLiteral:applicationName];
+  NSString *script = [NSString stringWithFormat:
+    @"set targetTTY to %@\n"
+    "set targetTTYName to %@\n"
+    "tell application %@\n"
+    "  repeat with w in windows\n"
+    "    repeat with t in tabs of w\n"
+    "      repeat with s in sessions of t\n"
+    "        set sessionTTY to tty of s\n"
+    "        if sessionTTY is targetTTY or sessionTTY is targetTTYName or \"/dev/\" & sessionTTY is targetTTY then\n"
+    "          select s\n"
+    "          select t\n"
+    "          select w\n"
+    "          activate\n"
+    "          return \"ok\"\n"
+    "        end if\n"
+    "      end repeat\n"
+    "    end repeat\n"
+    "  end repeat\n"
+    "end tell\n"
+    "return \"not found\"",
+    ttyLiteral, ttyNameLiteral, applicationLiteral];
+  return [self runAppleScript:script];
+}
+
+- (BOOL)focusITermSessionWithTTY:(NSString *)tty;
+{
+  return [self focusITermSessionWithTTY:tty applicationName:@"iTerm"]
+      || [self focusITermSessionWithTTY:tty applicationName:@"iTerm2"];
+}
+
+- (BOOL)focusTerminalTabWithTTY:(NSString *)tty;
+{
+  NSString *ttyLiteral = [self appleScriptStringLiteral:tty];
+  NSString *ttyNameLiteral = [self appleScriptStringLiteral:tty.lastPathComponent ?: tty];
+  NSString *script = [NSString stringWithFormat:
+    @"set targetTTY to %@\n"
+    "set targetTTYName to %@\n"
+    "tell application \"Terminal\"\n"
+    "  repeat with w in windows\n"
+    "    repeat with t in tabs of w\n"
+    "      set tabTTY to tty of t\n"
+    "      if tabTTY is targetTTY or tabTTY is targetTTYName or \"/dev/\" & tabTTY is targetTTY then\n"
+    "        set selected tab of w to t\n"
+    "        set index of w to 1\n"
+    "        activate\n"
+    "        return \"ok\"\n"
+    "      end if\n"
+    "    end repeat\n"
+    "  end repeat\n"
+    "end tell\n"
+    "return \"not found\"", ttyLiteral, ttyNameLiteral];
+  return [self runAppleScript:script];
+}
+
+- (BOOL)focusTmuxOrigin:(NSDictionary *)origin;
+{
+  NSString *tmuxPath = origin[@"tmuxPath"] ?: [self pathForExecutable:@"tmux"];
+  NSString *tmuxPane = origin[@"tmuxPane"];
+  if (tmuxPath.length == 0 || tmuxPane.length == 0) return NO;
+
+  NSString *socket = origin[@"tmuxSocket"];
+  NSString *clientTTY = origin[@"clientTTY"];
+  NSString *sessionID = origin[@"sessionID"];
+  NSString *windowID = origin[@"windowID"];
+  NSString *paneID = origin[@"paneID"] ?: tmuxPane;
+  NSDictionary *environment = origin[@"tmuxEnv"] ? @{@"TMUX": origin[@"tmuxEnv"]} : nil;
+  BOOL success = NO;
+
+  if (windowID.length > 0) {
+    NSArray *selectWindow = [self tmuxArgumentsWithSocket:socket
+                                                  command:@[@"select-window", @"-t", windowID]];
+    success |= [self runTaskAtPath:tmuxPath arguments:selectWindow environment:environment output:nil] == 0;
+  }
+
+  if (paneID.length > 0) {
+    NSArray *selectPane = [self tmuxArgumentsWithSocket:socket
+                                                command:@[@"select-pane", @"-t", paneID]];
+    success |= [self runTaskAtPath:tmuxPath arguments:selectPane environment:environment output:nil] == 0;
+  }
+
+  if (clientTTY.length > 0) {
+    NSString *target = sessionID.length > 0 ? sessionID : tmuxPane;
+    NSArray *arguments = [self tmuxArgumentsWithSocket:socket
+                                               command:@[@"switch-client", @"-c", clientTTY, @"-t", target]];
+    success |= [self runTaskAtPath:tmuxPath arguments:arguments environment:environment output:nil] == 0;
+  }
+
+  return success;
+}
+
+- (BOOL)focusTerminalOrigin:(NSDictionary *)origin;
+{
+  NSString *tty = origin[@"terminalTTY"];
+  NSString *bundleID = origin[@"terminalBundleID"];
+
+  if (tty.length > 0 && [bundleID isEqualToString:@"com.googlecode.iterm2"]) {
+    if ([self focusITermSessionWithTTY:tty]) return YES;
+  }
+  if (tty.length > 0 && [bundleID isEqualToString:@"com.apple.Terminal"]) {
+    if ([self focusTerminalTabWithTTY:tty]) return YES;
+  }
+  if (tty.length > 0 && bundleID.length == 0) {
+    if ([self focusITermSessionWithTTY:tty]) return YES;
+    if ([self focusTerminalTabWithTTY:tty]) return YES;
+  }
+  if (bundleID.length > 0) {
+    return [self activateAppWithBundleID:bundleID];
+  }
+  return NO;
+}
+
+- (BOOL)focusOrigin:(NSDictionary *)origin;
+{
+  BOOL success = NO;
+  if ([origin[@"kind"] isEqualToString:@"tmux"]) {
+    success |= [self focusTmuxOrigin:origin];
+  }
+  success |= [self focusTerminalOrigin:origin];
+  if (!success) {
+    NSLog(@"[!] Unable to focus notification origin: %@", origin);
+  }
+  return success;
+}
+
 - (BOOL)activateNotificationWithUserInfo:(NSDictionary *)userInfo
                                    title:(NSString *)title
                                 subtitle:(NSString *)subtitle
@@ -437,6 +768,9 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   NSString *bundleID = userInfo[@"bundleID"];
   NSString *command  = userInfo[@"command"];
   NSString *open     = userInfo[@"open"];
+  NSDictionary *focusOrigin = [userInfo[@"focusOrigin"] isKindOfClass:[NSDictionary class]]
+      ? userInfo[@"focusOrigin"]
+      : nil;
 
   if (logActivation) {
     NSLog(@"User activated notification:");
@@ -447,9 +781,11 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
     NSLog(@"bundle ID: %@", bundleID);
     NSLog(@"  command: %@", command);
     NSLog(@"     open: %@", open);
+    NSLog(@"   origin: %@", focusOrigin);
   }
 
   BOOL success = YES;
+  if (focusOrigin) success &= [self focusOrigin:focusOrigin];
   if (bundleID) success &= [self activateAppWithBundleID:bundleID];
   if (command)  success &= [self executeShellCommand:command logOutput:logActivation];
   if (open) {

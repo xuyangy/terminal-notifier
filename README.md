@@ -169,6 +169,11 @@ notification is still delivered:
 $ terminal-notifier -message 'Build finished' -open 'https://example.com' -wait
 ```
 
+Focus the terminal or tmux pane that posted the notification when it is clicked:
+```sh
+$ terminal-notifier -message 'LLM needs attention' -focus
+```
+
 Run a shell command when the notification is clicked:
 ```sh
 $ terminal-notifier -title 'Backup' -message 'Click to view the log' -execute 'open /tmp/backup.log'
@@ -349,6 +354,17 @@ terminal. If the notification is still delivered, Return removes it and runs the
 same `-open`, `-activate`, or `-execute` behavior as clicking the notification.
 Unlike a click, which logs to the system log, an `-execute` command run via
 Return writes its output to the terminal.
+
+-------------------------------------------------------------------------------
+
+`-focus`
+
+Focus the terminal that posted the notification when the user clicks it. When
+posted from tmux, terminal-notifier records the tmux socket, client TTY, and
+pane ID, then switches that client back to the originating pane before focusing
+the terminal app. Exact window/tab focus is best-effort for iTerm2 and Terminal
+and may require macOS Automation permission; otherwise terminal-notifier falls
+back to activating the terminal app.
 
 -------------------------------------------------------------------------------
 

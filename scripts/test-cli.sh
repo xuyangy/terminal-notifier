@@ -206,6 +206,13 @@ else
   record "-wait" 1
 fi
 
+header "-focus on click"
+echo "Expected: banner appears. Switch away, then CLICK IT. This terminal/tmux pane comes to the foreground."
+echo "$D  (macOS may ask for Automation permission for exact iTerm2/Terminal window focus.)$Z"
+"$BIN" -message "click to focus origin" -focus
+pause "Switch away, then click the notification now"
+prompt_yns "Did clicking the notification focus this terminal/tmux pane?"; record "-focus" $?
+
 header "-activate on click"
 echo "Expected: banner appears. CLICK IT. Calculator.app comes to the foreground."
 "$BIN" -message "click to activate Calculator" -activate "com.apple.calculator"

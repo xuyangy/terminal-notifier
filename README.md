@@ -322,6 +322,16 @@ Specify a local image `PATH` or `file://` URL to display instead of the
 application icon. `.icns` files are used directly; other image formats supported
 by `NSImage` are converted to `.icns` for the cached spoof bundle.
 
+As a shortcut, a bare agentic-tool name uses an icon bundled with
+terminal-notifier instead of a file path: `claude` (aliases: `claude-code`),
+`codex` (`codex-cli`), `antigravity`, and `opencode`. Names are matched
+case- and separator-insensitively. A value containing a `/`, or one that names
+an existing file, is always treated as a path.
+
+```sh
+$ terminal-notifier -message 'Build finished' -appIcon claude
+```
+
 -------------------------------------------------------------------------------
 
 `-c, -contentImage PATH`

@@ -1,5 +1,6 @@
 #import <Cocoa/Cocoa.h>
 #import <CommonCrypto/CommonDigest.h>
+#import <stdlib.h>
 #import <sys/stat.h>
 #import <unistd.h>
 #import "AppDelegate.h"
@@ -176,6 +177,8 @@ void PrintHelpBanner(void) {
          "                                 First use of a given sender shows the macOS notification-permission prompt.\n" \
          "       -i, -appIcon PATH         Override the notification icon. Accepts .icns directly; other image\n" \
          "                                 formats (png, jpg, tiff, …) are rendered to .icns automatically.\n" \
+         "                                 A bare agentic-tool name uses a bundled icon: claude, codex,\n" \
+         "                                 antigravity, opencode.\n" \
          "                                 Combines with -sender (keeps the sender's name, swaps the icon).\n" \
          "       -c, -contentImage URL     The URL of an image to display attached to the notification.\n" \
          "                                 Supported types: png, jpg, jpeg, gif. (.icns is NOT supported.)\n" \
@@ -406,6 +409,45 @@ static NSString *ShortHash(NSString *input) {
   return hex;
 }
 
+// Resolve a user-supplied path to its canonical absolute form so different
+// spellings of the same file (relative vs absolute, symlinks, `.`/`..`) map to
+// one spoof identity instead of fragmenting into separate Notification Center
+// entries. Returns the input unchanged when it can't be resolved (e.g. the file
+// doesn't exist), so the normal "couldn't convert" error path still fires.
+static NSString *CanonicalPath(NSString *path) {
+  const char *fsRep = path.fileSystemRepresentation;
+  if (!fsRep) return path;
+  char *resolved = realpath(fsRep, NULL);
+  if (!resolved) return path;
+  NSString *canonical = [NSString stringWithUTF8String:resolved];
+  free(resolved);
+  return canonical ?: path;
+}
+
+// Map a friendly agentic-tool name (e.g. "claude", "claude-code", "codex") to a
+// bundled icon shipped in the app's Resources. Names are matched case- and
+// separator-insensitively, so "claude-code", "claude_code", and "ClaudeCode"
+// are equivalent. Returns the resource path, or nil if the name isn't a known
+// tool or the resource is missing.
+static NSString *BundledAgentIconPath(NSString *name) {
+  NSString *key = [[name.lowercaseString
+                    componentsSeparatedByCharactersInSet:
+                      [NSCharacterSet characterSetWithCharactersInString:@"-_ ."]]
+                   componentsJoinedByString:@""];
+  NSDictionary<NSString *, NSString *> *resourceForKey = @{
+    @"claude":           @"claude_code",
+    @"claudecode":       @"claude_code",
+    @"codex":            @"codex_cli",
+    @"codexcli":         @"codex_cli",
+    @"antigravity":       @"antigravity",
+    @"opencode":          @"opencode-logo-light",
+    @"opencodelogolight": @"opencode-logo-light",
+  };
+  NSString *resource = resourceForKey[key];
+  if (!resource) return nil;
+  return [[NSBundle mainBundle] pathForResource:resource ofType:@"png"];
+}
+
 // Read a file's mtime as an NSDate; nil if missing.
 static NSDate *MTimeAt(NSString *path) {
   return [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil][NSFileModificationDate];
@@ -452,6 +494,19 @@ static void HandleSpoofIfNeeded(int argc, char *argv[]) {
   NSString *senderID = FindStringArg(args, @"-sender");
   NSString *appIcon  = FindStringArg(args, @"-appIcon");
   if (!senderID && !appIcon) return;
+
+  // A bare agentic-tool name (e.g. "claude", "codex") resolves to a bundled
+  // icon rather than a file path, unless an actual file by that name exists.
+  if (appIcon && ![appIcon containsString:@"/"]
+      && ![[NSFileManager defaultManager] fileExistsAtPath:appIcon]) {
+    NSString *bundled = BundledAgentIconPath(appIcon);
+    if (bundled) appIcon = bundled;
+  }
+
+  // Key the spoof identity on the icon's canonical path, not the raw argument,
+  // so the same file passed as a relative path, absolute path, or via a symlink
+  // reuses one bundle instead of creating a duplicate per spelling.
+  if (appIcon) appIcon = CanonicalPath(appIcon);
 
   NSString *sourceAppPath = [[NSBundle mainBundle] bundlePath];
   if (![sourceAppPath.pathExtension isEqualToString:@"app"]) {

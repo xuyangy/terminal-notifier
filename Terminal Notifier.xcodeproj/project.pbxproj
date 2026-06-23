@@ -14,6 +14,10 @@
 		5199792C15B1F92B003AFC57 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 5199792B15B1F92B003AFC57 /* AppDelegate.m */; };
 			5199792F15B1F92B003AFC57 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5199792D15B1F92B003AFC57 /* MainMenu.xib */; };
 			5199794C15B302F1003AFC57 /* iTerm2.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5199794B15B302F1003AFC57 /* iTerm2.icns */; };
+			D10C0DE000000000000000B1 /* claude_code.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C1 /* claude_code.png */; };
+			D10C0DE000000000000000B2 /* codex_cli.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C2 /* codex_cli.png */; };
+			D10C0DE000000000000000B4 /* antigravity.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C4 /* antigravity.png */; };
+			D10C0DE000000000000000B5 /* opencode-logo-light.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C5 /* opencode-logo-light.png */; };
 			AA99990015B1F92B003AFC57 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA99990115B1F92B003AFC57 /* UserNotifications.framework */; };
 /* End PBXBuildFile section */
 
@@ -32,6 +36,10 @@
 		5199792B15B1F92B003AFC57 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 			5199792E15B1F92B003AFC57 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
 			5199794B15B302F1003AFC57 /* iTerm2.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = iTerm2.icns; sourceTree = "<group>"; };
+			D10C0DE000000000000000C1 /* claude_code.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = claude_code.png; path = assets/claude_code.png; sourceTree = "<group>"; };
+			D10C0DE000000000000000C2 /* codex_cli.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = codex_cli.png; path = assets/codex_cli.png; sourceTree = "<group>"; };
+			D10C0DE000000000000000C4 /* antigravity.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = antigravity.png; path = assets/antigravity.png; sourceTree = "<group>"; };
+			D10C0DE000000000000000C5 /* opencode-logo-light.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = opencode-logo-light.png; path = assets/opencode-logo-light.png; sourceTree = "<group>"; };
 			AA99990115B1F92B003AFC57 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -52,6 +60,10 @@
 			isa = PBXGroup;
 			children = (
 				5199794B15B302F1003AFC57 /* iTerm2.icns */,
+				D10C0DE000000000000000C1 /* claude_code.png */,
+				D10C0DE000000000000000C2 /* codex_cli.png */,
+				D10C0DE000000000000000C4 /* antigravity.png */,
+				D10C0DE000000000000000C5 /* opencode-logo-light.png */,
 				5199791E15B1F92B003AFC57 /* Terminal Notifier */,
 				5199791715B1F92B003AFC57 /* Frameworks */,
 				5199791515B1F92B003AFC57 /* Products */,
@@ -164,6 +176,10 @@
 				5199792915B1F92B003AFC57 /* Credits.rtf in Resources */,
 				5199792F15B1F92B003AFC57 /* MainMenu.xib in Resources */,
 				5199794C15B302F1003AFC57 /* iTerm2.icns in Resources */,
+				D10C0DE000000000000000B1 /* claude_code.png in Resources */,
+				D10C0DE000000000000000B2 /* codex_cli.png in Resources */,
+				D10C0DE000000000000000B4 /* antigravity.png in Resources */,
+				D10C0DE000000000000000B5 /* opencode-logo-light.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

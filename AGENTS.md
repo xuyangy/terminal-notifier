@@ -7,7 +7,7 @@ This repository contains the macOS `terminal-notifier` app.
 - `Terminal Notifier/` holds the Objective-C application source, plist, precompiled header, and localized UI resources in `en.lproj/`.
 - `Terminal Notifier.xcodeproj/` is the Xcode project and shared scheme metadata.
 - `assets/` stores README screenshots and documentation images.
-- `scripts/` contains manual CLI smoke tests.
+- `scripts/` contains shell scripts: `test-cli.sh` (interactive CLI smoke tests), `install-release.sh`/`uninstall.sh` (user install flow), `package.sh` (release packaging), and `capture-examples.sh` (README screenshots).
 - `README.md`, `CONTRIBUTING.md`, and `CODE_OF_CONDUCT.md` define user-facing behavior and contribution expectations.
 
 ## Build, Test, and Development Commands
@@ -16,6 +16,8 @@ This repository contains the macOS `terminal-notifier` app.
 - `just run -message hi` builds, then runs the freshly built binary with the provided CLI arguments.
 - `just smoke` sends a quick notification for manual verification.
 - `just test-cli` runs the interactive CLI smoke-test suite in `scripts/test-cli.sh`.
+- `just install` builds and installs to `~/Applications` with a wrapper and `tn` alias in `~/.local/bin`; `just uninstall` removes them.
+- `just package` builds a production-identity app and zips it to `build/package/` (the artifact CI attaches to a release).
 - `xcodebuild -project "Terminal Notifier.xcodeproj" -configuration Release SYMROOT=build` builds without `just`. This requires full Xcode, not only Command Line Tools.
 - `git diff --check` catches trailing whitespace before committing.
 

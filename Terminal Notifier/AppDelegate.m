@@ -330,6 +330,12 @@ static BOOL TNClaimShutdown(void) {
   NSString *termProgram = environment[@"TERM_PROGRAM"];
   if ([termProgram isEqualToString:@"iTerm.app"]) return @"com.googlecode.iterm2";
   if ([termProgram isEqualToString:@"Apple_Terminal"]) return @"com.apple.Terminal";
+  // Inside tmux, TERM_PROGRAM is "tmux" and the host terminal's identity is
+  // lost — but iTerm2 also exports LC_TERMINAL, which tmux forwards. Recover it
+  // so the click handler can use iTerm2's TTY-based StealFocus escape, instead
+  // of falling back to AppleScript (which needs per-bundle Automation consent
+  // the -appIcon/-sender spoof bundle never obtains, so focus silently fails).
+  if ([environment[@"LC_TERMINAL"] isEqualToString:@"iTerm2"]) return @"com.googlecode.iterm2";
   return nil;
 }
 

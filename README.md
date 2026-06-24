@@ -332,6 +332,10 @@ an existing file, is always treated as a path.
 $ terminal-notifier -message 'Build finished' -appIcon claude
 ```
 
+Because `-appIcon` posts from a spoof bundle, combining it with `-focus` in
+iTerm2 needs a one-time **Remember my choice → Allow** for iTerm2's
+"control sequence to activate a session" prompt; see the `-focus` option below.
+
 -------------------------------------------------------------------------------
 
 `-c, -contentImage PATH`
@@ -371,10 +375,19 @@ Return writes its output to the terminal.
 
 Focus the terminal that posted the notification when the user clicks it. When
 posted from tmux, terminal-notifier records the tmux socket, client TTY, and
-pane ID, then switches that client back to the originating pane before focusing
-the terminal app. Exact window/tab focus is best-effort for iTerm2 and Terminal
-and may require macOS Automation permission; otherwise terminal-notifier falls
-back to activating the terminal app.
+pane ID, then switches that client back to the originating pane.
+
+In iTerm2 it raises the exact session via a `StealFocus` control sequence
+(fast, no Automation permission needed). The first time, iTerm2 asks "a control
+sequence attempted to activate a session" — tick **Remember my choice → Allow**
+to silence it. In Terminal.app it uses AppleScript, which needs macOS
+Automation permission.
+
+Note: with `-sender`/`-appIcon`, the notification is owned by a separate spoof
+bundle that has no Automation consent, so AppleScript-based focus silently fails
+for it. In that mode iTerm2's `StealFocus` path is the only one that works, so
+allowing the iTerm2 prompt above is required; Terminal.app click-focus is not
+supported.
 
 -------------------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 #import "AppDelegate.h"
 #import <stdatomic.h>
 #import <unistd.h>
+#import <fcntl.h>
 
 NSString * const TerminalNotifierBundleID = @"fr.julienxx.oss.terminal-notifier";
 
@@ -616,15 +617,26 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 - (BOOL)runAppleScript:(NSString *)script;
 {
-  NSString *output = nil;
-  int status = [self runTaskAtPath:@"/usr/bin/osascript"
-                         arguments:@[@"-e", script]
-                       environment:nil
-                            output:&output];
-  NSString *trimmed = [self trimmedString:output];
-  if (status == 0 && [trimmed isEqualToString:@"ok"]) return YES;
-  if (trimmed.length > 0) {
-    NSLog(@"[!] Focus AppleScript did not complete: %@", trimmed);
+  __block NSAppleEventDescriptor *result = nil;
+  __block NSDictionary *error = nil;
+
+  void (^run)(void) = ^{
+    NSAppleScript *appleScript = [[NSAppleScript alloc] initWithSource:script];
+    result = [appleScript executeAndReturnError:&error];
+  };
+
+  if ([NSThread isMainThread]) run();
+  else dispatch_sync(dispatch_get_main_queue(), run);
+
+  if (result) {
+    NSString *output = [result stringValue];
+    NSString *trimmed = [self trimmedString:output];
+    if ([trimmed isEqualToString:@"ok"]) return YES;
+    if (trimmed.length > 0 && ![trimmed isEqualToString:@"not found"]) {
+      NSLog(@"[!] Focus AppleScript returned: %@", trimmed);
+    }
+  } else {
+    NSLog(@"[!] Focus AppleScript error: %@", error);
   }
   return NO;
 }
@@ -702,22 +714,27 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
   NSDictionary *environment = origin[@"tmuxEnv"] ? @{@"TMUX": origin[@"tmuxEnv"]} : nil;
   BOOL success = NO;
 
+  NSMutableArray *command = [NSMutableArray array];
+
   if (windowID.length > 0) {
-    NSArray *selectWindow = [self tmuxArgumentsWithSocket:socket
-                                                  command:@[@"select-window", @"-t", windowID]];
-    success |= [self runTaskAtPath:tmuxPath arguments:selectWindow environment:environment output:nil] == 0;
+    [command addObjectsFromArray:@[@"select-window", @"-t", windowID, @";"]];
   }
 
   if (paneID.length > 0) {
-    NSArray *selectPane = [self tmuxArgumentsWithSocket:socket
-                                                command:@[@"select-pane", @"-t", paneID]];
-    success |= [self runTaskAtPath:tmuxPath arguments:selectPane environment:environment output:nil] == 0;
+    [command addObjectsFromArray:@[@"select-pane", @"-t", paneID, @";"]];
   }
 
   if (clientTTY.length > 0) {
     NSString *target = sessionID.length > 0 ? sessionID : tmuxPane;
-    NSArray *arguments = [self tmuxArgumentsWithSocket:socket
-                                               command:@[@"switch-client", @"-c", clientTTY, @"-t", target]];
+    [command addObjectsFromArray:@[@"switch-client", @"-c", clientTTY, @"-t", target, @";"]];
+  }
+
+  if (command.count > 0 && [[command lastObject] isEqualToString:@";"]) {
+    [command removeLastObject];
+  }
+
+  if (command.count > 0) {
+    NSArray *arguments = [self tmuxArgumentsWithSocket:socket command:command];
     success |= [self runTaskAtPath:tmuxPath arguments:arguments environment:environment output:nil] == 0;
   }
 
@@ -728,6 +745,20 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 {
   NSString *tty = origin[@"terminalTTY"];
   NSString *bundleID = origin[@"terminalBundleID"];
+
+  if (tty.length > 0 && [bundleID isEqualToString:@"com.googlecode.iterm2"]) {
+    NSString *devicePath = [tty hasPrefix:@"/dev/"] ? tty : [NSString stringWithFormat:@"/dev/%@", tty];
+    int fd = open([devicePath UTF8String], O_WRONLY | O_NOCTTY);
+    if (fd >= 0) {
+      const char *escape = "\033]50;StealFocus\007";
+      write(fd, escape, strlen(escape));
+      close(fd);
+      // Fast path: assume success and avoid the macOS Automation prompt.
+      // Note: If the user disabled "Apps may steal focus" in iTerm2 preferences,
+      // this escape sequence is a silent no-op, and focus will quietly fail here.
+      return YES;
+    }
+  }
 
   if (tty.length > 0 && [bundleID isEqualToString:@"com.googlecode.iterm2"]) {
     if ([self focusITermSessionWithTTY:tty]) return YES;

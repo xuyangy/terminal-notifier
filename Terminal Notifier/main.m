@@ -175,7 +175,7 @@ void PrintHelpBanner(void) {
          "                                 terminal-notifier re-launches itself from a cached clone of its .app\n" \
          "                                 bundle whose icon, display name, and bundle ID match the sender.\n" \
          "                                 First use of a given sender shows the macOS notification-permission prompt.\n" \
-         "       -i, -appIcon PATH         Override the notification icon. Accepts .icns directly; other image\n" \
+         "       -i, -appIcon PATH|NAME    Override the notification icon. Accepts .icns directly; other image\n" \
          "                                 formats (png, jpg, tiff, …) are rendered to .icns automatically.\n" \
          "                                 A bare agentic-tool name uses a bundled icon: claude, codex,\n" \
          "                                 antigravity, opencode.\n" \

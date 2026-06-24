@@ -316,7 +316,7 @@ For information on the `ID`, see the `-activate` option.
 
 -------------------------------------------------------------------------------
 
-`-i, -appIcon PATH`
+`-i, -appIcon PATH|NAME`
 
 Specify a local image `PATH` or `file://` URL to display instead of the
 application icon. `.icns` files are used directly; other image formats supported

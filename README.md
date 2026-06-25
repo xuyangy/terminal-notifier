@@ -174,6 +174,11 @@ Focus the terminal or tmux pane that posted the notification when it is clicked:
 $ terminal-notifier -message 'LLM needs attention' -focus
 ```
 
+Later, jump back to the origin of the most recent `-focus` notification:
+```sh
+$ terminal-notifier -focusLast
+```
+
 Run a shell command when the notification is clicked:
 ```sh
 $ terminal-notifier -title 'Backup' -message 'Click to view the log' -execute 'open /tmp/backup.log'
@@ -375,7 +380,8 @@ Return writes its output to the terminal.
 
 Focus the terminal that posted the notification when the user clicks it. When
 posted from tmux, terminal-notifier records the tmux socket, client TTY, and
-pane ID, then switches that client back to the originating pane.
+pane ID, then switches that client back to the originating pane. It also saves
+this origin so it can be re-focused later with `-focusLast`.
 
 In iTerm2 it raises the exact session via a `StealFocus` control sequence
 (fast, no Automation permission needed). The first time, iTerm2 asks "a control
@@ -388,6 +394,36 @@ bundle that has no Automation consent, so AppleScript-based focus silently fails
 for it. In that mode iTerm2's `StealFocus` path is the only one that works, so
 allowing the iTerm2 prompt above is required; Terminal.app click-focus is not
 supported.
+
+-------------------------------------------------------------------------------
+
+`-focusLast`
+
+Focus the origin saved by the most recent `-focus` notification, then exit.
+Takes no message. Even when the notification toast is hidden or has already
+disappeared (e.g. after one click), `-focusLast` lets you focus the last origin.
+This is designed to be bound to a global keyboard shortcut, allowing you to jump
+back to a task that notified you without using the mouse.
+
+For example, to bind it to a Hyperkey (e.g. `Hyper + Return`) using **skhd**:
+```sh
+cmd + alt + ctrl + shift - return : /usr/local/bin/terminal-notifier -focusLast
+```
+
+Or as a **Raycast** Script Command:
+```bash
+#!/bin/bash
+# @raycast.title Focus Last Notification
+# @raycast.mode silent
+/usr/local/bin/terminal-notifier -focusLast
+```
+
+Or using **Hammerspoon**:
+```lua
+hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "return", function()
+  hs.execute("/usr/local/bin/terminal-notifier -focusLast")
+end)
+```
 
 -------------------------------------------------------------------------------
 

@@ -50,6 +50,7 @@ static const TNOption kTNOptions[] = {
   {"-execute",      "-e",   YES},
   {"-wait",         NULL,   NO},
   {"-focus",        NULL,   NO},
+  {"-focusLast",    NULL,   NO},
   {"-ignoreDnD",    "-dnd", NO},
 };
 
@@ -151,6 +152,7 @@ void PrintHelpBanner(void) {
          "Usage: %s -message VALUE [options]\n" \
          "       %s -remove ID\n" \
          "       %s -list ID\n" \
+         "       %s -focusLast\n" \
          "\n" \
          "   Either of these is required (unless message data is piped to the tool):\n" \
          "\n" \
@@ -186,6 +188,9 @@ void PrintHelpBanner(void) {
          "       -e, -execute COMMAND      A shell command to perform when the user clicks the notification.\n" \
          "       -wait                     Wait for Return on the controlling terminal and treat it like a notification click.\n" \
          "       -focus                    Focus the originating terminal/tmux pane when the user clicks the notification.\n" \
+         "                                 Also records the origin so it can be re-focused later with -focusLast.\n" \
+         "       -focusLast                Focus the origin saved by the most recent -focus notification, then exit.\n" \
+         "                                 Takes no message; bind it to a global hotkey to jump back without the mouse.\n" \
          "       -dnd, -ignoreDnD          Mark notification as time-sensitive (requires entitlement to bypass Focus/DnD).\n" \
          "\n" \
          "When the user activates a notification, the results are logged to the system logs.\n" \
@@ -195,7 +200,7 @@ void PrintHelpBanner(void) {
          "An example of this is when using an open bracket, which has to be escaped like so: ‘\\[’.\n" \
          "\n" \
          "For more information see https://github.com/julienXX/terminal-notifier.\n",
-         appName, appVersion, appName, appName, appName);
+         appName, appVersion, appName, appName, appName, appName);
 }
 
 // Resolve the .app bundle for a given bundle ID. Uses the modern API on

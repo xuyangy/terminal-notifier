@@ -44,6 +44,14 @@ static BOOL TNClaimShutdown(void) {
   // No-value flags (-wait, -ignoreDnD) are merged into the argument domain
   // by main(), so everything is read through NSUserDefaults here.
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+  // -focusLast re-focuses the saved origin and exits; it carries no message,
+  // so handle it before the message/stdin plumbing below.
+  if (defaults[@"focusLast"]) {
+    [self focusLastSavedOrigin];
+    return;
+  }
+
   NSString *subtitle = defaults[@"subtitle"];
   NSString *message  = defaults[@"message"];
   NSString *remove   = defaults[@"remove"];
@@ -96,7 +104,10 @@ static BOOL TNClaimShutdown(void) {
   if (defaults[@"execute"])  options[@"command"]          = defaults[@"execute"];
   if (defaults[@"contentImage"]) options[@"contentImage"] = defaults[@"contentImage"];
   if (defaults[@"wait"])     options[@"waitForActivation"] = @YES;
-  if (defaults[@"focus"])    options[@"focusOrigin"] = [self currentFocusOrigin];
+  if (defaults[@"focus"]) {
+    NSDictionary *origin = [self currentFocusOrigin];
+    options[@"focusOrigin"] = origin;
+  }
 
   if (defaults[@"open"]) {
     NSURL *url = [NSURL URLWithString:defaults[@"open"]];
@@ -378,6 +389,64 @@ static BOOL TNClaimShutdown(void) {
   return origin.count > 0 ? origin : @{@"kind": @"unknown"};
 }
 
+// Stable location for the most-recent -focus origin, independent of the bundle
+// ID (so -focusLast still finds it when a notification was sent under -sender).
+- (NSURL *)lastFocusOriginURL;
+{
+  NSFileManager *fm = [NSFileManager defaultManager];
+  NSURL *applicationSupport = [fm URLForDirectory:NSApplicationSupportDirectory
+                                         inDomain:NSUserDomainMask
+                                appropriateForURL:nil
+                                           create:YES
+                                            error:NULL];
+  if (applicationSupport == nil) return nil;
+  NSURL *dir = [applicationSupport URLByAppendingPathComponent:@"terminal-notifier"
+                                                   isDirectory:YES];
+  [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:NULL];
+  return [dir URLByAppendingPathComponent:@"last-focus-origin.plist"];
+}
+
+// An origin is only worth saving if -focusLast could later act on it: it needs
+// a TTY, a tmux pane, or at least a terminal bundle ID to raise. currentFocusOrigin
+// never returns an empty dict (a TTY-less cron/daemon -focus still yields
+// {kind: terminal}), so without this check such an origin would clobber a
+// previously-saved, still-focusable one.
+- (BOOL)focusOriginIsActionable:(NSDictionary *)origin;
+{
+  return [origin[@"terminalTTY"] length] > 0
+      || [origin[@"tmuxPane"] length] > 0
+      || [origin[@"terminalBundleID"] length] > 0;
+}
+
+// Persist the origin so -focusLast can re-focus it without a notification click.
+// The origin dict holds only strings, so it serializes cleanly as a plist.
+- (void)persistLastFocusOrigin:(NSDictionary *)origin;
+{
+  NSURL *url = [self lastFocusOriginURL];
+  if (url == nil || ![self focusOriginIsActionable:origin]) return;
+  NSError *error = nil;
+  NSData *data = [NSPropertyListSerialization dataWithPropertyList:origin
+                                                            format:NSPropertyListXMLFormat_v1_0
+                                                           options:0
+                                                             error:&error];
+  if (data == nil || ![data writeToURL:url options:NSDataWritingAtomic error:&error]) {
+    NSLog(@"[!] Could not save focus origin: %@", error);
+  }
+}
+
+// Re-focus the origin recorded by the most recent -focus notification.
+- (void)focusLastSavedOrigin;
+{
+  NSURL *url = [self lastFocusOriginURL];
+  NSDictionary *origin = url ? [NSDictionary dictionaryWithContentsOfURL:url] : nil;
+  if (origin.count == 0) {
+    NSLog(@"[!] No saved focus origin. Send a notification with -focus first.");
+    exit(1);
+  }
+  BOOL focused = [self focusOrigin:origin];
+  exit(focused ? 0 : 1);
+}
+
 - (void)deliverNotificationWithTitle:(NSString *)title
                             subtitle:(NSString *)subtitle
                              message:(NSString *)message
@@ -455,6 +524,11 @@ static BOOL TNClaimShutdown(void) {
     if (error) {
       NSLog(@"[!] Failed to deliver notification: %@", error.localizedDescription);
       safeExit(1);
+      return;
+    }
+    NSDictionary *focusOrigin = options[@"focusOrigin"];
+    if (focusOrigin) {
+      [self persistLastFocusOrigin:focusOrigin];
     }
     atomic_store(&deliveryCompleted, true);
     if (options[@"waitForActivation"]) {

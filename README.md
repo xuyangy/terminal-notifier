@@ -112,18 +112,21 @@ once the app is gone.
 $ terminal-notifier -message VALUE [options]
 $ terminal-notifier -remove ID
 $ terminal-notifier -list ID
+$ terminal-notifier -focusLast
 ```
 
-At a minimum, specify one of `-message`, `-remove`, or `-list` (or pipe the
-message body in on stdin). Every common option also has a short form, e.g.
-`-m` for `-message` and `-t` for `-title` — see [Options](#options). terminal-notifier must run from inside its
+At a minimum, specify one of `-message`, `-remove`, `-list`, or `-focusLast`
+(or pipe the message body in on stdin). Every common option also has a short
+form, e.g. `-m` for `-message` and `-t` for `-title` — see [Options](#options).
+terminal-notifier must run from inside its
 application bundle — Notification Center identifies the posting application by
 bundle metadata — so invoke it through the installed wrapper or the full
 `terminal-notifier.app/Contents/MacOS/terminal-notifier` path, never a copied
 or symlinked bare binary.
 
 Exit status: `0` on success, `1` on bad arguments, denied notification
-permission, a failed click action, or a `-wait` that can't complete (no
+permission, a failed click action, a `-focusLast` with no saved origin (or
+whose origin could not be focused), or a `-wait` that can't complete (no
 controlling terminal, EOF instead of Return, or the notification was already
 dismissed), `2` if delivery does not complete within ten seconds.
 
@@ -407,7 +410,7 @@ back to a task that notified you without using the mouse.
 
 For example, to bind it to a Hyperkey (e.g. `Hyper + Return`) using **skhd**:
 ```sh
-cmd + alt + ctrl + shift - return : /usr/local/bin/terminal-notifier -focusLast
+cmd + alt + ctrl + shift - return : ~/.local/bin/terminal-notifier -focusLast
 ```
 
 Or as a **Raycast** Script Command:
@@ -415,13 +418,13 @@ Or as a **Raycast** Script Command:
 #!/bin/bash
 # @raycast.title Focus Last Notification
 # @raycast.mode silent
-/usr/local/bin/terminal-notifier -focusLast
+~/.local/bin/terminal-notifier -focusLast
 ```
 
 Or using **Hammerspoon**:
 ```lua
 hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "return", function()
-  hs.execute("/usr/local/bin/terminal-notifier -focusLast")
+  hs.execute("~/.local/bin/terminal-notifier -focusLast")
 end)
 ```
 

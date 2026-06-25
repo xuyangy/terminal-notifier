@@ -570,6 +570,16 @@ static BOOL TNClaimShutdown(void) {
   }];
 }
 
+// Collapse tabs and newlines to spaces so a single notification stays on one
+// tab-separated row: -list's output is documented as tab-separated, but the
+// group ID, title, subtitle, and body are user-supplied and may contain either.
+- (NSString *)tsvField:(NSString *)value;
+{
+  if (value.length == 0) return @"";
+  NSCharacterSet *separators = [NSCharacterSet characterSetWithCharactersInString:@"\t\n\r"];
+  return [[value componentsSeparatedByCharactersInSet:separators] componentsJoinedByString:@" "];
+}
+
 - (void)listNotificationWithGroupID:(NSString *)listGroupID;
 {
   UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
@@ -579,10 +589,10 @@ static BOOL TNClaimShutdown(void) {
       NSString *deliveredGroupID = n.request.content.userInfo[@"groupID"];
       if ([@"ALL" isEqualToString:listGroupID] || [deliveredGroupID isEqualToString:listGroupID]) {
         [lines addObject:[NSString stringWithFormat:@"%@\t%@\t%@\t%@\t%@",
-                          deliveredGroupID ?: @"",
-                          n.request.content.title ?: @"",
-                          n.request.content.subtitle ?: @"",
-                          n.request.content.body ?: @"",
+                          [self tsvField:deliveredGroupID],
+                          [self tsvField:n.request.content.title],
+                          [self tsvField:n.request.content.subtitle],
+                          [self tsvField:n.request.content.body],
                           [n.date description]]];
       }
     }
@@ -970,7 +980,16 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
     task.standardOutput = pipe;
     task.standardError = pipe;
   }
-  [task launch];
+
+  // -[NSTask launch] raises if /bin/sh can't be spawned; report failure
+  // instead of crashing the click-activation handler with an uncaught
+  // exception, matching runTaskAtPath: and main.m's task launches.
+  @try {
+    [task launch];
+  } @catch (NSException *exception) {
+    NSLog(@"[!] Failed to run command: %@", exception.reason);
+    return NO;
+  }
 
   if (fileHandle) {
     NSData *data = nil;

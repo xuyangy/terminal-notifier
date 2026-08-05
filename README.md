@@ -507,10 +507,15 @@ you need them, use [alerter](https://github.com/vjeantet/alerter). The original
 
 ## License
 
-All the works are available under the MIT license. **Except** for
-‘iTerm2.icns’, which is a copy of the [iTerm2](https://iterm2.com) app icon
-and as such is copyright of George Nachman and the iTerm2 contributors
-(GPL-2.0).
+All the works are available under the MIT license, **except** for the bundled
+third-party icons:
+
+* ‘iTerm2.icns’, which is a copy of the [iTerm2](https://iterm2.com) app icon
+  and as such is copyright of George Nachman and the iTerm2 contributors
+  (GPL-2.0).
+* The agentic-tool icons in `assets/` used by `-appIcon` (Claude Code, Codex
+  CLI, Gemini CLI, Antigravity, opencode, pi, oh-my-pi), which are the marks of
+  their respective projects and are included for identification only.
 
 Copyright (C) 2012-2017 Eloy Durán <eloy.de.enige@gmail.com>, Julien Blanchard
 <julien@sideburns.eu>

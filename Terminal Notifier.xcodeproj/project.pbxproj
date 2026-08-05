@@ -17,7 +17,9 @@
 			D10C0DE000000000000000B1 /* claude_code.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C1 /* claude_code.png */; };
 			D10C0DE000000000000000B2 /* codex_cli.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C2 /* codex_cli.png */; };
 			D10C0DE000000000000000B4 /* antigravity.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C4 /* antigravity.png */; };
-			D10C0DE000000000000000B5 /* opencode-logo-light.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C5 /* opencode-logo-light.png */; };
+			D10C0DE000000000000000B5 /* opencode.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C5 /* opencode.png */; };
+			D10C0DE000000000000000B6 /* pi.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C6 /* pi.png */; };
+			D10C0DE000000000000000B7 /* oh_my_pi.png in Resources */ = {isa = PBXBuildFile; fileRef = D10C0DE000000000000000C7 /* oh_my_pi.png */; };
 			AA99990015B1F92B003AFC57 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA99990115B1F92B003AFC57 /* UserNotifications.framework */; };
 /* End PBXBuildFile section */
 
@@ -39,7 +41,9 @@
 			D10C0DE000000000000000C1 /* claude_code.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = claude_code.png; path = assets/claude_code.png; sourceTree = "<group>"; };
 			D10C0DE000000000000000C2 /* codex_cli.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = codex_cli.png; path = assets/codex_cli.png; sourceTree = "<group>"; };
 			D10C0DE000000000000000C4 /* antigravity.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = antigravity.png; path = assets/antigravity.png; sourceTree = "<group>"; };
-			D10C0DE000000000000000C5 /* opencode-logo-light.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = opencode-logo-light.png; path = assets/opencode-logo-light.png; sourceTree = "<group>"; };
+			D10C0DE000000000000000C5 /* opencode.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = opencode.png; path = assets/opencode.png; sourceTree = "<group>"; };
+			D10C0DE000000000000000C6 /* pi.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = pi.png; path = assets/pi.png; sourceTree = "<group>"; };
+			D10C0DE000000000000000C7 /* oh_my_pi.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = oh_my_pi.png; path = assets/oh_my_pi.png; sourceTree = "<group>"; };
 			AA99990115B1F92B003AFC57 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -63,7 +67,9 @@
 				D10C0DE000000000000000C1 /* claude_code.png */,
 				D10C0DE000000000000000C2 /* codex_cli.png */,
 				D10C0DE000000000000000C4 /* antigravity.png */,
-				D10C0DE000000000000000C5 /* opencode-logo-light.png */,
+				D10C0DE000000000000000C5 /* opencode.png */,
+				D10C0DE000000000000000C6 /* pi.png */,
+				D10C0DE000000000000000C7 /* oh_my_pi.png */,
 				5199791E15B1F92B003AFC57 /* Terminal Notifier */,
 				5199791715B1F92B003AFC57 /* Frameworks */,
 				5199791515B1F92B003AFC57 /* Products */,
@@ -179,7 +185,9 @@
 				D10C0DE000000000000000B1 /* claude_code.png in Resources */,
 				D10C0DE000000000000000B2 /* codex_cli.png in Resources */,
 				D10C0DE000000000000000B4 /* antigravity.png in Resources */,
-				D10C0DE000000000000000B5 /* opencode-logo-light.png in Resources */,
+				D10C0DE000000000000000B5 /* opencode.png in Resources */,
+				D10C0DE000000000000000B6 /* pi.png in Resources */,
+				D10C0DE000000000000000B7 /* oh_my_pi.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

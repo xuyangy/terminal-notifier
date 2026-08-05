@@ -180,7 +180,7 @@ void PrintHelpBanner(void) {
          "       -i, -appIcon PATH|NAME    Override the notification icon. Accepts .icns directly; other image\n" \
          "                                 formats (png, jpg, tiff, …) are rendered to .icns automatically.\n" \
          "                                 A bare agentic-tool name uses a bundled icon: claude, codex,\n" \
-         "                                 antigravity, opencode.\n" \
+         "                                 pi, oh-my-pi, antigravity, opencode.\n" \
          "                                 Combines with -sender (keeps the sender's name, swaps the icon).\n" \
          "       -c, -contentImage URL     The URL of an image to display attached to the notification.\n" \
          "                                 Supported types: png, jpg, jpeg, gif. (.icns is NOT supported.)\n" \
@@ -429,7 +429,7 @@ static NSString *CanonicalPath(NSString *path) {
   return canonical ?: path;
 }
 
-// Map a friendly agentic-tool name (e.g. "claude", "claude-code", "codex") to a
+// Map a friendly agentic-tool name (e.g. "claude", "codex", "pi-agent") to a
 // bundled icon shipped in the app's Resources. Names are matched case- and
 // separator-insensitively, so "claude-code", "claude_code", and "ClaudeCode"
 // are equivalent. Returns the resource path, or nil if the name isn't a known
@@ -440,13 +440,15 @@ static NSString *BundledAgentIconPath(NSString *name) {
                       [NSCharacterSet characterSetWithCharactersInString:@"-_ ."]]
                    componentsJoinedByString:@""];
   NSDictionary<NSString *, NSString *> *resourceForKey = @{
-    @"claude":           @"claude_code",
-    @"claudecode":       @"claude_code",
-    @"codex":            @"codex_cli",
-    @"codexcli":         @"codex_cli",
-    @"antigravity":       @"antigravity",
-    @"opencode":          @"opencode-logo-light",
-    @"opencodelogolight": @"opencode-logo-light",
+    @"claude":      @"claude_code",
+    @"claudecode":  @"claude_code",
+    @"codex":       @"codex_cli",
+    @"codexcli":    @"codex_cli",
+    @"pi":          @"pi",
+    @"piagent":     @"pi",
+    @"ohmypi":      @"oh_my_pi",
+    @"antigravity": @"antigravity",
+    @"opencode":    @"opencode",
   };
   NSString *resource = resourceForKey[key];
   if (!resource) return nil;
@@ -500,7 +502,7 @@ static void HandleSpoofIfNeeded(int argc, char *argv[]) {
   NSString *appIcon  = FindStringArg(args, @"-appIcon");
   if (!senderID && !appIcon) return;
 
-  // A bare agentic-tool name (e.g. "claude", "codex") resolves to a bundled
+  // A bare agentic-tool name (e.g. "claude", "codex", "pi") resolves to a bundled
   // icon rather than a file path, unless an actual file by that name exists.
   if (appIcon && ![appIcon containsString:@"/"]
       && ![[NSFileManager defaultManager] fileExistsAtPath:appIcon]) {

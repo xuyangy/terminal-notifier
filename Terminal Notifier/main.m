@@ -447,6 +447,7 @@ static NSString *BundledAgentIconPath(NSString *name) {
     @"pi":          @"pi",
     @"piagent":     @"pi",
     @"ohmypi":      @"oh_my_pi",
+    @"omp":         @"oh_my_pi",
     @"antigravity": @"antigravity",
     @"opencode":    @"opencode",
   };

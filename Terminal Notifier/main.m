@@ -503,8 +503,9 @@ static void HandleSpoofIfNeeded(int argc, char *argv[]) {
   NSString *appIcon  = FindStringArg(args, @"-appIcon");
   if (!senderID && !appIcon) return;
 
-  // A bare agentic-tool name (e.g. "claude", "codex", "pi") resolves to a bundled
-  // icon rather than a file path, unless an actual file by that name exists.
+  // A bare agentic-tool name (e.g. "claude", "codex", "pi") resolves to a
+  // bundled icon rather than a file path, unless an actual file by that name
+  // exists.
   if (appIcon && ![appIcon containsString:@"/"]
       && ![[NSFileManager defaultManager] fileExistsAtPath:appIcon]) {
     NSString *bundled = BundledAgentIconPath(appIcon);
